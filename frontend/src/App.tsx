@@ -6,7 +6,9 @@ import { ChatAssistant } from './pages/ChatAssistant';
 import { ImageAnalysis } from './pages/ImageAnalysis';
 import { Features } from './pages/Features';
 import { About } from './pages/About';
-import { Dashboard } from './pages/Dashboard'; // Add this import
+import { Doctors } from './pages/Doctors'; // Add this import
+import { MapPrediction } from './pages/MapPrediction'; // Add this import
+// ... other imports
 
 function App() {
   return (
@@ -18,7 +20,8 @@ function App() {
           <Route path="analysis" element={<ImageAnalysis />} />
           <Route path="features" element={<Features />} />
           <Route path="about" element={<About />} />
-          <Route path="dashboard" element={<Dashboard />} /> {/* Add this route */}
+          <Route path="doctors" element={<Doctors />} /> {/* Add this */}
+          <Route path="map-prediction" element={<MapPrediction />} /> {/* Add this */}
           {/* Add 404 page */}
           <Route path="*" element={
             <div className="min-h-screen flex items-center justify-center">

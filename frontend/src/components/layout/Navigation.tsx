@@ -14,15 +14,20 @@ import {
     Moon,
     Sun,
     Bell,
-    BellRing
+    BellRing,
+    Info,
+    AlertTriangle,
+    Map
 } from 'lucide-react';
 
 const navigation = [
     { name: 'Home', href: '/', icon: Home },
-    { name: 'AI Chat', href: '/chat', icon: MessageSquare },
-    { name: 'Image Analysis', href: '/analysis', icon: Image },
-    { name: 'Doctors', href: '/doctors', icon: Users },
     { name: 'Features', href: '/features', icon: Settings },
+    { name: 'Doctors', href: '/doctors', icon: Users },
+    { name: 'About', href: '/about', icon: Info },
+    { name: 'Emergency', href: 'tel:911', icon: AlertTriangle, isExternal: true },
+    { name: 'Map Prediction', href: '/map-prediction', icon: Map },
+
 ];
 
 export const Navigation: React.FC = () => {
@@ -191,6 +196,15 @@ export const Navigation: React.FC = () => {
                                     fullWidth
                                 >
                                     Get Started
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    fullWidth
+                                    leftIcon={<AlertTriangle className="w-4 h-4" />}
+                                    onClick={() => window.location.href = 'tel:911'}
+                                >
+                                    Emergency Call
                                 </Button>
                             </div>
                         </div>
