@@ -72,14 +72,6 @@ export const Navigation: React.FC = () => {
                                 {item.name}
                             </NavLink>
                         ))}
-
-                        {/* Real-time status indicator */}
-                        <div className="hidden lg:flex items-center px-3 py-1 bg-green-50 dark:bg-green-900/30 rounded-full ml-4">
-                            <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse" />
-                            <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                                AI Systems: Operational
-                            </span>
-                        </div>
                     </div>
 
                     {/* Right side actions */}
