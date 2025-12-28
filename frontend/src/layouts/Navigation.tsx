@@ -14,12 +14,17 @@ import {
   Sun,
   AlertTriangle,
   Map,
-  Info // Add this import
+  Info,
+  LogIn,
+  LogOut,
+  User
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext'; // Add this import
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
-  { name: 'Features', href: '/features', icon: Settings },
+  { name: 'AI Chat', href: '/chat', icon: MessageSquare },
+  { name: 'Image Analysis', href: '/analysis', icon: Settings },
   { name: 'Doctors', href: '/doctors', icon: Users },
   { name: 'About', href: '/about', icon: Info },
   { name: 'Emergency', href: 'tel:911', icon: AlertTriangle, isExternal: true },
@@ -29,6 +34,7 @@ const navigation = [
 export const Navigation: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const { isAuthenticated, user, toggleAuth } = useAuth(); // Get auth state
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -95,7 +101,7 @@ export const Navigation: React.FC = () => {
             })}
           </div>
 
-          {/* Right side actions */}
+          {/* Right side actions - UPDATED WITH AUTH */}
           <div className="flex items-center space-x-3">
             <Button
               variant="ghost"
@@ -111,22 +117,44 @@ export const Navigation: React.FC = () => {
               )}
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex"
-              leftIcon={<UserCircle className="w-4 h-4" />}
-            >
-              Sign In
-            </Button>
-
-            <Button
-              variant="primary"
-              size="sm"
-              className="hidden sm:inline-flex"
-            >
-              Get Started
-            </Button>
+            {/* Auth Display */}
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-3">
+                <div className="hidden sm:flex items-center space-x-2">
+                  {user?.avatar ? (
+                    <img 
+                      src={user.avatar} 
+                      alt={user.name}
+                      className="w-8 h-8 rounded-full border-2 border-primary-100"
+                    />
+                  ) : (
+                    <UserCircle className="w-8 h-8 text-primary-600" />
+                  )}
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    Hi, {user?.name?.split(' ')[0] || 'User'}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleAuth}
+                  leftIcon={<LogOut className="w-4 h-4" />}
+                  className="hidden sm:inline-flex"
+                >
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={toggleAuth}
+                leftIcon={<LogIn className="w-4 h-4" />}
+                className="hidden sm:inline-flex"
+              >
+                Login Demo
+              </Button>
+            )}
 
             {/* Mobile menu button */}
             <button
@@ -143,7 +171,7 @@ export const Navigation: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile menu - UPDATED WITH AUTH */}
         {isMenuOpen && (
           <div className="md:hidden border-t border-neutral-200 dark:border-neutral-800 mt-2 pt-2 pb-3">
             <div className="px-2 space-y-1">
@@ -197,6 +225,7 @@ export const Navigation: React.FC = () => {
               })}
               
               <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
+                {/* Dark Mode Toggle */}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -207,22 +236,51 @@ export const Navigation: React.FC = () => {
                   {darkMode ? 'Light Mode' : 'Dark Mode'}
                 </Button>
                 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  fullWidth
-                  leftIcon={<UserCircle className="w-4 h-4" />}
-                >
-                  Sign In
-                </Button>
-                
-                <Button
-                  variant="primary"
-                  size="sm"
-                  fullWidth
-                >
-                  Get Started
-                </Button>
+                {/* Auth Toggle for Mobile */}
+                {isAuthenticated ? (
+                  <>
+                    <div className="flex items-center px-3 py-2">
+                      {user?.avatar ? (
+                        <img 
+                          src={user.avatar} 
+                          alt={user.name}
+                          className="w-8 h-8 rounded-full mr-3 border-2 border-primary-100"
+                        />
+                      ) : (
+                        <UserCircle className="w-8 h-8 mr-3 text-primary-600" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">{user?.name}</p>
+                        <p className="text-xs text-neutral-500">{user?.email}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      fullWidth
+                      onClick={() => {
+                        toggleAuth();
+                        setIsMenuOpen(false);
+                      }}
+                      leftIcon={<LogOut className="w-4 h-4" />}
+                    >
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    fullWidth
+                    onClick={() => {
+                      toggleAuth();
+                      setIsMenuOpen(false);
+                    }}
+                    leftIcon={<LogIn className="w-4 h-4" />}
+                  >
+                    Login Demo
+                  </Button>
+                )}
               </div>
             </div>
           </div>
