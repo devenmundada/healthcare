@@ -1,12 +1,42 @@
-import React, { useState } from 'react';
-import { X, Calendar, Clock, Video, User, MapPin, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  X, 
+  Calendar, 
+  Clock, 
+  Video, 
+  User, 
+  MapPin, 
+  CheckCircle,
+  Building,
+  Stethoscope,
+  AlertCircle,
+  Loader2,
+  Navigation,
+  Phone,
+  Mail,
+  Globe
+} from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Input } from '../../ui/Input';
 import { Badge } from '../../ui/Badge';
+import { Select } from '../../ui/Select';
 
 interface AppointmentBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface Hospital {
+  id: string;
+  name: string;
+  address: string;
+  distance: string;
+  rating: number;
+  specialties: string[];
+  latitude: number;
+  longitude: number;
+  phone: string;
+  website: string;
 }
 
 const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpen, onClose }) => {
@@ -14,6 +44,11 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [consultationType, setConsultationType] = useState<'video' | 'in-person'>('video');
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [nearbyHospitals, setNearbyHospitals] = useState<Hospital[]>([]);
   const [patientInfo, setPatientInfo] = useState({
     name: '',
     email: '',
@@ -33,11 +68,161 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
     '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM'
   ];
 
-  const handleSubmit = () => {
-    // In production, this would call backend API
-    alert('Appointment booked successfully! Google Calendar event and Meet link sent.');
-    onClose();
-    setStep(1);
+  // Get user location when in-person consultation is selected
+  useEffect(() => {
+    if (isOpen && consultationType === 'in-person' && step >= 2) {
+      getUserLocation();
+    }
+  }, [isOpen, consultationType, step]);
+
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setLoadingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        fetchNearbyHospitals(latitude, longitude);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        alert("Unable to get your location. Using demo hospitals.");
+        setNearbyHospitals(getMockHospitals());
+        setLoadingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  const fetchNearbyHospitals = async (lat: number, lng: number) => {
+    try {
+      // In production, call your backend API which calls Google Places API
+      // For demo, using mock data
+      const hospitals = getMockHospitals(lat, lng);
+      setNearbyHospitals(hospitals);
+      
+      // Auto-select the nearest hospital
+      if (hospitals.length > 0) {
+        setSelectedHospital(hospitals[0]);
+      }
+    } catch (error) {
+      console.error("Error fetching hospitals:", error);
+      setNearbyHospitals(getMockHospitals(lat, lng));
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  const getMockHospitals = (lat?: number, lng?: number): Hospital[] => [
+    {
+      id: '1',
+      name: 'City General Hospital',
+      address: '123 Medical Center Dr, San Francisco, CA 94107',
+      distance: '0.5 miles',
+      rating: 4.8,
+      specialties: ['Emergency Care', 'Cardiology', 'General Surgery'],
+      latitude: lat ? lat + 0.001 : 37.7749,
+      longitude: lng ? lng + 0.001 : -122.4194,
+      phone: '(555) 123-4567',
+      website: 'https://citygeneral.example.com'
+    },
+    {
+      id: '2',
+      name: 'Westside Medical Center',
+      address: '456 Health Ave, San Francisco, CA 94103',
+      distance: '1.2 miles',
+      rating: 4.6,
+      specialties: ['Pediatrics', 'Dermatology', 'Orthopedics'],
+      latitude: lat ? lat + 0.002 : 37.7729,
+      longitude: lng ? lng + 0.002 : -122.4174,
+      phone: '(555) 234-5678',
+      website: 'https://westsidemedical.example.com'
+    },
+    {
+      id: '3',
+      name: 'University Hospital',
+      address: '789 Campus Rd, San Francisco, CA 94117',
+      distance: '2.3 miles',
+      rating: 4.9,
+      specialties: ['Neurology', 'Oncology', 'Research Center'],
+      latitude: lat ? lat - 0.002 : 37.7769,
+      longitude: lng ? lng - 0.002 : -122.4214,
+      phone: '(555) 345-6789',
+      website: 'https://universityhospital.example.com'
+    },
+    {
+      id: '4',
+      name: 'Community Health Clinic',
+      address: '101 Wellness St, San Francisco, CA 94110',
+      distance: '0.8 miles',
+      rating: 4.5,
+      specialties: ['Family Medicine', 'Mental Health', 'Preventive Care'],
+      latitude: lat ? lat + 0.0015 : 37.7759,
+      longitude: lng ? lng - 0.0015 : -122.4184,
+      phone: '(555) 456-7890',
+      website: 'https://communityclinic.example.com'
+    }
+  ];
+
+  const generateGoogleMeetLink = () => {
+    // In production, this would call Google Calendar API to create event
+    // For demo, generate a mock Google Meet link
+    const meetingId = Math.random().toString(36).substring(2, 15);
+    return `https://meet.google.com/${meetingId}`;
+  };
+
+  const openGoogleMapsDirections = (hospital: Hospital) => {
+    if (!userLocation) return;
+    
+    const origin = `${userLocation.lat},${userLocation.lng}`;
+    const destination = `${hospital.latitude},${hospital.longitude}`;
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+    window.open(url, '_blank');
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (consultationType === 'video') {
+        // Generate Google Meet link
+        const meetLink = generateGoogleMeetLink();
+        
+        // Create Google Calendar event (mock implementation)
+        const calendarEvent = {
+          title: `Appointment with ${selectedDoctor?.name}`,
+          description: `Reason: ${patientInfo.reason}\nMeet Link: ${meetLink}`,
+          startTime: `${selectedDate}T${selectedTime}`,
+          endTime: `${selectedDate}T${selectedTime}`,
+        };
+        
+        alert(`✅ Appointment booked successfully!\n\n📅 Added to Google Calendar\n🔗 Google Meet: ${meetLink}\n📧 Confirmation sent to: ${patientInfo.email}\n\nThe Google Meet link will be active 15 minutes before your appointment.`);
+        
+      } else if (consultationType === 'in-person' && selectedHospital) {
+        // Generate Google Maps link
+        const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedHospital.address)}`;
+        
+        alert(`✅ Appointment booked successfully!\n\n🏥 Hospital: ${selectedHospital.name}\n📍 Address: ${selectedHospital.address}\n📞 Phone: ${selectedHospital.phone}\n🗺️ Directions: ${mapsLink}\n\nPlease arrive 15 minutes early for check-in.`);
+      }
+      
+      // Reset and close
+      onClose();
+      setStep(1);
+      setSelectedDoctor(null);
+      setSelectedDate('');
+      setSelectedTime('');
+      setPatientInfo({ name: '', email: '', phone: '', reason: '' });
+      
+    } catch (error) {
+      console.error('Error booking appointment:', error);
+      alert('Failed to book appointment. Please try again.');
+    }
   };
 
   if (!isOpen) return null;
@@ -110,7 +295,7 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
                         setSelectedDoctor(doctor);
                         setStep(2);
                       }}
-                      className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-500 cursor-pointer"
+                      className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-500 cursor-pointer transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
@@ -150,7 +335,7 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
                         <button
                           key={date}
                           onClick={() => setSelectedDate(date)}
-                          className={`p-3 rounded-lg border ${
+                          className={`p-3 rounded-lg border transition-colors ${
                             selectedDate === date
                               ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                               : 'border-neutral-200 dark:border-neutral-700 hover:border-primary-300'
@@ -183,7 +368,7 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
                           <button
                             key={time}
                             onClick={() => setSelectedTime(time)}
-                            className={`p-3 rounded-lg border ${
+                            className={`p-3 rounded-lg border transition-colors ${
                               selectedTime === time
                                 ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                                 : 'border-neutral-200 dark:border-neutral-700 hover:border-primary-300'
@@ -205,18 +390,129 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
                       Consultation Type
                     </label>
                     <div className="grid grid-cols-2 gap-4">
-                      <button className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-300 text-center">
+                      <button 
+                        onClick={() => setConsultationType('video')}
+                        className={`p-4 border rounded-lg text-center transition-colors ${
+                          consultationType === 'video'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-neutral-200 dark:border-neutral-700 hover:border-blue-300'
+                        }`}
+                      >
                         <Video className="w-6 h-6 mx-auto mb-2 text-blue-500" />
                         <div className="font-medium">Video Consultation</div>
                         <div className="text-sm text-neutral-500">Google Meet Link</div>
+                        {consultationType === 'video' && (
+                          <div className="mt-2 text-xs text-blue-600">✅ Selected</div>
+                        )}
                       </button>
-                      <button className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-300 text-center">
+                      
+                      <button 
+                        onClick={() => setConsultationType('in-person')}
+                        className={`p-4 border rounded-lg text-center transition-colors ${
+                          consultationType === 'in-person'
+                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                            : 'border-neutral-200 dark:border-neutral-700 hover:border-green-300'
+                        }`}
+                      >
                         <MapPin className="w-6 h-6 mx-auto mb-2 text-green-500" />
                         <div className="font-medium">In-Person Visit</div>
-                        <div className="text-sm text-neutral-500">Clinic Location</div>
+                        <div className="text-sm text-neutral-500">Clinic/Hospital</div>
+                        {consultationType === 'in-person' && (
+                          <div className="mt-2 text-xs text-green-600">✅ Selected</div>
+                        )}
                       </button>
                     </div>
                   </div>
+
+                  {/* Show nearby hospitals for in-person consultation */}
+                  {consultationType === 'in-person' && selectedDate && selectedTime && (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                        {loadingLocation ? 'Finding hospitals near you...' : 'Nearby Hospitals'}
+                      </label>
+                      
+                      {loadingLocation ? (
+                        <div className="text-center py-4">
+                          <Loader2 className="w-8 h-8 mx-auto mb-2 text-primary-600 animate-spin" />
+                          <p className="text-sm text-neutral-500">Getting your location...</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {nearbyHospitals.map((hospital) => (
+                            <div
+                              key={hospital.id}
+                              onClick={() => setSelectedHospital(hospital)}
+                              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                                selectedHospital?.id === hospital.id
+                                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                                  : 'border-neutral-200 dark:border-neutral-700 hover:border-primary-300'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center mb-2">
+                                    <Building className="w-5 h-5 text-primary-600 mr-2" />
+                                    <h4 className="font-medium text-neutral-900 dark:text-white">
+                                      {hospital.name}
+                                    </h4>
+                                  </div>
+                                  <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                                    {hospital.address}
+                                  </p>
+                                  <div className="flex items-center space-x-4 text-xs">
+                                    <span className="flex items-center">
+                                      <Navigation className="w-3 h-3 mr-1" />
+                                      {hospital.distance} away
+                                    </span>
+                                    <span>⭐ {hospital.rating}/5</span>
+                                    <span className="text-primary-600">
+                                      {hospital.specialties.slice(0, 2).join(', ')}
+                                    </span>
+                                  </div>
+                                </div>
+                                {selectedHospital?.id === hospital.id && (
+                                  <CheckCircle className="w-5 h-5 text-green-500" />
+                                )}
+                              </div>
+                              
+                              {selectedHospital?.id === hospital.id && (
+                                <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-700">
+                                  <div className="flex items-center space-x-4">
+                                    <a 
+                                      href={`tel:${hospital.phone}`}
+                                      className="flex items-center text-sm text-blue-600 hover:text-blue-700"
+                                    >
+                                      <Phone className="w-4 h-4 mr-1" />
+                                      Call
+                                    </a>
+                                    <a 
+                                      href={hospital.website}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center text-sm text-blue-600 hover:text-blue-700"
+                                    >
+                                      <Globe className="w-4 h-4 mr-1" />
+                                      Website
+                                    </a>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openGoogleMapsDirections(hospital);
+                                      }}
+                                      className="flex items-center text-sm text-green-600 hover:text-green-700"
+                                    >
+                                      <Navigation className="w-4 h-4 mr-1" />
+                                      Directions
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -239,6 +535,7 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
                     placeholder="john@example.com"
                     value={patientInfo.email}
                     onChange={(e) => setPatientInfo({...patientInfo, email: e.target.value})}
+                    required
                   />
                   <Input
                     label="Phone Number"
@@ -276,6 +573,10 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
                         <span className="font-medium">{selectedDoctor?.name}</span>
                       </div>
                       <div className="flex justify-between">
+                        <span className="text-neutral-600 dark:text-neutral-400">Specialization</span>
+                        <span className="font-medium">{selectedDoctor?.specialization}</span>
+                      </div>
+                      <div className="flex justify-between">
                         <span className="text-neutral-600 dark:text-neutral-400">Date & Time</span>
                         <span className="font-medium">
                           {new Date(selectedDate).toLocaleDateString()} at {selectedTime}
@@ -286,24 +587,72 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
                         <span className="font-medium">{patientInfo.name}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-neutral-600 dark:text-neutral-400">Type</span>
-                        <Badge variant="outline">Video Consultation</Badge>
+                        <span className="text-neutral-600 dark:text-neutral-400">Consultation Type</span>
+                        <Badge variant={consultationType === 'video' ? 'outline' : 'success'}>
+                          {consultationType === 'video' ? 'Video Consultation' : 'In-Person Visit'}
+                        </Badge>
                       </div>
+                      
+                      {consultationType === 'in-person' && selectedHospital && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-600 dark:text-neutral-400">Hospital</span>
+                            <span className="font-medium text-right">{selectedHospital.name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-600 dark:text-neutral-400">Address</span>
+                            <span className="font-medium text-right text-sm">{selectedHospital.address}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-600 dark:text-neutral-400">Distance</span>
+                            <span className="font-medium">{selectedHospital.distance}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  {/* Features */}
+                  {/* Features based on consultation type */}
                   <div className="space-y-3">
-                    <div className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                      <span className="text-sm">Google Calendar event will be created</span>
-                    </div>
-                    <div className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <Video className="w-5 h-5 text-blue-500 mr-3" />
-                      <span className="text-sm">Google Meet link will be provided</span>
-                    </div>
+                    {consultationType === 'video' ? (
+                      <>
+                        <div className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <Video className="w-5 h-5 text-blue-500 mr-3" />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium">Google Meet Link</span>
+                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                              {generateGoogleMeetLink()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          <Calendar className="w-5 h-5 text-green-500 mr-3" />
+                          <span className="text-sm">Google Calendar event will be created</span>
+                        </div>
+                        <div className="flex items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                          <Mail className="w-5 h-5 text-purple-500 mr-3" />
+                          <span className="text-sm">Meet link will be emailed to {patientInfo.email}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          <Navigation className="w-5 h-5 text-green-500 mr-3" />
+                          <span className="text-sm">Google Maps directions available</span>
+                        </div>
+                        <div className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <Phone className="w-5 h-5 text-blue-500 mr-3" />
+                          <span className="text-sm">Hospital contact: {selectedHospital?.phone}</span>
+                        </div>
+                        <div className="flex items-center p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                          <AlertCircle className="w-5 h-5 text-amber-500 mr-3" />
+                          <span className="text-sm">Please arrive 15 minutes early for check-in</span>
+                        </div>
+                      </>
+                    )}
+                    
                     <div className="flex items-center p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                      <Bell className="w-5 h-5 text-amber-500 mr-3" />
+                      <AlertCircle className="w-5 h-5 text-amber-500 mr-3" />
                       <span className="text-sm">Reminders sent 24h and 1h before appointment</span>
                     </div>
                   </div>
@@ -327,8 +676,9 @@ const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({ isOpe
                     onClick={() => setStep(step + 1)}
                     disabled={
                       (step === 1 && !selectedDoctor) ||
-                      (step === 2 && (!selectedDate || !selectedTime)) ||
-                      (step === 3 && !patientInfo.name || !patientInfo.email)
+                      (step === 2 && (!selectedDate || !selectedTime || 
+                        (consultationType === 'in-person' && !selectedHospital))) ||
+                      (step === 3 && (!patientInfo.name || !patientInfo.email))
                     }
                   >
                     Continue
