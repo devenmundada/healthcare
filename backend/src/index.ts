@@ -8,7 +8,7 @@ import { AppDataSource } from './config/data-source';
 import { redisClient } from './config/redis';
 import { logger } from './utils/logger';
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5432;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Graceful shutdown handling

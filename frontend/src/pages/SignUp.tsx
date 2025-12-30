@@ -114,7 +114,7 @@ export const SignUp: React.FC = () => {
 
     try {
       // Send data to backend API
-      const response = await fetch('http://localhost:3001/api/auth/signup', {
+      const response = await fetch('http://localhost:5432/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

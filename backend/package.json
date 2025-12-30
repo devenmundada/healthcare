@@ -19,7 +19,10 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "security:scan": "npm audit",
     "docker:build": "docker build -t healthcare-api .",
-    "docker:run": "docker-compose up -d"
+    "docker:run": "docker-compose up -d",
+    "db:setup": "npx ts-node scripts/setup-database.ts",
+    "db:migrate": "npm run typeorm migration:run -- -d src/config/data-source.ts",
+    "db:generate": "npm run typeorm migration:generate -- -d src/config/data-source.ts"
   },
   "keywords": [
     "healthcare",
@@ -51,7 +54,7 @@
     "http-status-codes": "^2.2.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.3",
-    "morgan": "^1.10.0",
+    "morgan": "^1.10.1",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.16.0",
     "node-cron": "^3.0.2",
@@ -78,6 +81,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^1.4.13",
     "@types/node": "^20.3.1",
+    "@types/pg": "^8.16.0",
     "@types/speakeasy": "^2.0.9",
     "@types/supertest": "^2.0.12",
     "@types/uuid": "^9.0.8",
