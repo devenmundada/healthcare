@@ -2,15 +2,25 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-require('dotenv').config();
+const dotenv = require('dotenv');
+const pool = require('./config/database');
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001; // IMPORTANT: Use 3001, not 5432
+const PORT = process.env.PORT || 3001;
+
+// Database connection is handled by config/database.js
+// The pool is automatically initialized when the module is loaded
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000', // Your frontend URL
+  credentials: true
+}));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Health check endpoint
@@ -20,65 +30,46 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     service: 'Healthcare API',
     version: '1.0.0',
-    database: process.env.DB_NAME || 'healthcare_db'
+    database: 'connected' // Database connection managed by pool
   });
 });
 
-// Simple signup endpoint
-app.post('/api/auth/signup', (req, res) => {
-  const { name, email, phone, password } = req.body;
-  
-  if (!name || !email || !phone || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'All fields are required'
-    });
-  }
+// API Routes
+const { authRoutes } = require('./routes/auth.routes');
+app.use('/api/auth', authRoutes);
 
+// Simple test endpoint
+app.get('/api/test', (req, res) => {
   res.json({
-    success: true,
-    message: 'User registration successful',
-    data: {
-      id: 1,
-      name,
-      email,
-      phone,
-      role: 'patient'
-    }
+    message: 'Healthcare API is working!',
+    database: process.env.DB_NAME || 'not configured'
   });
 });
 
-// Simple login endpoint
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  
-  if (!email || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'Email and password are required'
-    });
-  }
-
-  res.json({
-    success: true,
-    message: 'Login successful',
-    token: 'jwt-token-here',
-    user: {
-      id: 1,
-      name: 'Test User',
-      email: email,
-      role: 'patient'
-    }
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    success: false, 
+    message: 'Route not found' 
   });
 });
 
-// Start server on PORT 3001 (NOT 5432!)
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🔐 Signup: POST http://localhost:${PORT}/api/auth/signup`);
-  console.log(`🔑 Login: POST http://localhost:${PORT}/api/auth/login`);
-  console.log('');
-  console.log(`📊 PostgreSQL is running on port 5432`);
-  console.log(`💻 Express API is running on port ${PORT}`);
+  console.log(`🔐 Auth endpoints:`);
+  console.log(`   POST http://localhost:${PORT}/api/auth/signup`);
+  console.log(`   POST http://localhost:${PORT}/api/auth/login`);
+  console.log(`🔗 API test: http://localhost:${PORT}/api/test`);
 });

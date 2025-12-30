@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import { body } from 'express-validator';
-import { AuthController } from '../controllers/auth.controller';
+const { Router } = require('express');
+const { body } = require('express-validator');
+const AuthController = require('../controllers/auth.controller');
 
 const router = Router();
 
@@ -52,4 +52,4 @@ router.post(
 // Get current user route
 router.get('/me', AuthController.getCurrentUser);
 
-export const authRoutes = router;
+module.exports = { authRoutes: router };

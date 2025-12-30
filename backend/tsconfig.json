@@ -17,6 +17,8 @@
       "emitDecoratorMetadata": true,
       "moduleResolution": "node",
       "allowSyntheticDefaultImports": true,
+      "types": ["node"],
+      "typeRoots": ["./node_modules/@types"],
       "baseUrl": ".",
       "paths": {
         "@/*": ["src/*"],
@@ -25,9 +27,11 @@
         "@models/*": ["src/models/*"],
         "@middleware/*": ["src/middleware/*"],
         "@utils/*": ["src/utils/*"],
-        "@types/*": ["src/types/*"]
+        "@types/*": ["src/types/*"],
+        "@config/*": ["src/config/*"],
+        "@entities/*": ["src/entities/*"]
       }
     },
     "include": ["src/**/*"],
-    "exclude": ["node_modules", "dist", "tests"]
+    "exclude": ["node_modules", "dist", "tests", "**/*.js"]
   }

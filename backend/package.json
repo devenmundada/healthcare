@@ -21,6 +21,7 @@
     "docker:build": "docker build -t healthcare-api .",
     "docker:run": "docker-compose up -d",
     "db:setup": "npx ts-node scripts/setup-database.ts",
+    "db:check": "node scripts/check-db.js",
     "db:migrate": "npm run typeorm migration:run -- -d src/config/data-source.ts",
     "db:generate": "npm run typeorm migration:generate -- -d src/config/data-source.ts"
   },
