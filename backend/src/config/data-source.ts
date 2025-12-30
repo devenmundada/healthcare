@@ -1,28 +1,20 @@
-import 'reflect-metadata';
-import { DataSource, DataSourceOptions } from 'typeorm';
-import dotenv from 'dotenv';
+import { DataSource } from 'typeorm';
+import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const isProduction = process.env.NODE_ENV === 'production';
-
-export const dataSourceOptions: DataSourceOptions = {
+export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
-  username: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'healthcare_plus',
-  synchronize: false, // Never true in production!
-  logging: !isProduction,
-  entities: ['src/models/entities/**/*.ts'],
+  username: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'root',
+  database: process.env.DB_NAME || 'healthcare_db',
+  synchronize: false, // Never use true in production!
+  logging: process.env.NODE_ENV === 'development',
+  entities: ['src/entities/**/*.ts'],
   migrations: ['src/migrations/**/*.ts'],
-  subscribers: [],
-  ssl: isProduction ? { rejectUnauthorized: false } : false,
-  extra: {
-    connectionLimit: 10,
-    max: isProduction ? 20 : 10,
-  },
-};
-
-export const AppDataSource = new DataSource(dataSourceOptions);
+  subscribers: ['src/subscribers/**/*.ts'],
+  migrationsRun: false,
+  poolSize: 10,
+});
