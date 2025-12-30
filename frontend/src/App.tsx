@@ -10,6 +10,7 @@ import { Doctors } from './pages/Doctors';
 import { MapPrediction } from './pages/MapPrediction';
 import { AuthProvider } from './contexts/AuthContext';
 import './styles/globals.css';
+import { SignUp } from './pages/SignUp';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="about" element={<About />} />
             <Route path="doctors" element={<Doctors />} />
             <Route path="map-prediction" element={<MapPrediction />} />
+            <Route path="signup" element={<SignUp />} />
             {/* Add 404 page */}
             <Route path="*" element={
               <div className="min-h-screen flex items-center justify-center">

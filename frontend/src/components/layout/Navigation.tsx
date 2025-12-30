@@ -27,7 +27,6 @@ const navigation = [
     { name: 'About', href: '/about', icon: Info },
     { name: 'Emergency', href: 'tel:911', icon: AlertTriangle, isExternal: true },
     { name: 'Map Prediction', href: '/map-prediction', icon: Map },
-
 ];
 
 export const Navigation: React.FC = () => {
@@ -72,6 +71,14 @@ export const Navigation: React.FC = () => {
                                 {item.name}
                             </NavLink>
                         ))}
+
+                        {/* Real-time status indicator */}
+                        <div className="hidden lg:flex items-center px-3 py-1 bg-green-50 dark:bg-green-900/30 rounded-full ml-4">
+                            <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse" />
+                            <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                                AI Systems: Operational
+                            </span>
+                        </div>
                     </div>
 
                     {/* Right side actions */}
@@ -109,22 +116,22 @@ export const Navigation: React.FC = () => {
                             )}
                         </Button>
 
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="hidden sm:inline-flex"
-                            leftIcon={<UserCircle className="w-4 h-4" />}
+                        {/* Sign In Link */}
+                        <NavLink
+                            to="/login"
+                            className="hidden sm:inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
                         >
+                            <UserCircle className="w-4 h-4 mr-2" />
                             Sign In
-                        </Button>
+                        </NavLink>
 
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            className="hidden sm:inline-flex"
+                        {/* Sign Up Link */}
+                        <NavLink
+                            to="/signup"
+                            className="hidden sm:inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
                         >
-                            Get Started
-                        </Button>
+                            Sign Up
+                        </NavLink>
 
                         {/* Mobile menu button */}
                         <button
@@ -173,22 +180,25 @@ export const Navigation: React.FC = () => {
                                     {darkMode ? 'Light Mode' : 'Dark Mode'}
                                 </Button>
 
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    fullWidth
-                                    leftIcon={<UserCircle className="w-4 h-4" />}
+                                {/* Mobile Sign In Link */}
+                                <NavLink
+                                    to="/login"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800 transition-colors w-full"
                                 >
+                                    <UserCircle className="w-4 h-4 mr-2" />
                                     Sign In
-                                </Button>
+                                </NavLink>
 
-                                <Button
-                                    variant="primary"
-                                    size="sm"
-                                    fullWidth
+                                {/* Mobile Sign Up Link */}
+                                <NavLink
+                                    to="/signup"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors w-full"
                                 >
-                                    Get Started
-                                </Button>
+                                    Sign Up
+                                </NavLink>
+
                                 <Button
                                     variant="danger"
                                     size="sm"

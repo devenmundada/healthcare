@@ -118,6 +118,8 @@ export const SignUp: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+
+          
         },
         body: JSON.stringify({
           name: formData.name,
@@ -534,8 +536,8 @@ export const SignUp: React.FC = () => {
               </GlassCard>
             </div>
           </div>
-        </Container>
-      </div>
+        </div>
+      </Container>
     </div>
   );
 };
