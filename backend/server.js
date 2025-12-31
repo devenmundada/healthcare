@@ -2,67 +2,49 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const dotenv = require('dotenv');
-const pool = require('./config/database');
+require('dotenv').config();
 
-dotenv.config();
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Database connection is handled by config/database.js
-// The pool is automatically initialized when the module is loaded
-
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: 'http://localhost:3000', // Your frontend URL
+  origin: 'http://localhost:3000',
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    service: 'Healthcare API',
-    version: '1.0.0',
-    database: 'connected' // Database connection managed by pool
-  });
+  res.json({ status: 'healthy' });
 });
 
-// API Routes
-const { authRoutes } = require('./routes/auth.routes');
+// API Routes - MUST be before 404 handler
 app.use('/api/auth', authRoutes);
+console.log('✅ Auth routes registered at /api/auth');
 
-// Simple test endpoint
+// Test
 app.get('/api/test', (req, res) => {
-  res.json({
-    message: 'Healthcare API is working!',
-    database: process.env.DB_NAME || 'not configured'
-  });
+  res.json({ message: 'API working' });
 });
 
-// 404 handler
+// 404 handler - MUST be last
 app.use('*', (req, res) => {
+  console.log(`❌ Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ 
     success: false, 
-    message: 'Route not found' 
+    message: 'Route not found',
+    method: req.method,
+    path: req.originalUrl,
+    hint: 'Make sure you are using the correct HTTP method (POST for /api/auth/signup)'
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
 
 // Start server
 app.listen(PORT, () => {

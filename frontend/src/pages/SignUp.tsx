@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import { Container } from '../components/layout/Container';
 import { GlassCard } from '../components/layout/GlassCard';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
+import { api } from '../services/api';
 import { 
   User, 
   Mail, 
@@ -113,25 +115,17 @@ export const SignUp: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Send data to backend API
-      const response = await fetch('http://localhost:5432/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-
-          
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-        }),
+      // Send data to backend API using the API service
+      const response = await api.post('/auth/signup', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (response.ok) {
+      if (response.status === 201 || response.status === 200) {
         // Success
         setSignUpSuccess(true);
         
@@ -145,16 +139,22 @@ export const SignUp: React.FC = () => {
         setTimeout(() => {
           navigate('/');
         }, 3000);
-      } else {
-        // Handle backend errors
-        setErrors({
-          email: data.message || 'Sign up failed. Please try again.',
-        });
       }
     } catch (error) {
       console.error('Sign up error:', error);
+      // Handle backend errors
+      let errorMessage = 'Network error. Please check your connection.';
+      
+      if (error instanceof AxiosError) {
+        errorMessage = error.response?.data?.message || 
+                      error.message || 
+                      'Network error. Please check your connection.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       setErrors({
-        email: 'Network error. Please check your connection.',
+        email: errorMessage,
       });
     } finally {
       setIsLoading(false);

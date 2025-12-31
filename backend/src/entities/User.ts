@@ -1,41 +1,37 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
-import { HealthProfile } from './HealthProfile';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ length: 100 })
-  name: string;
+  name!: string;
 
   @Column({ unique: true, length: 100 })
-  email: string;
+  email!: string;
 
   @Column({ length: 20 })
-  phone: string;
+  phone!: string;
 
   @Column({ length: 255 })
-  password: string;
+  password!: string;
 
   @Column({ default: 'patient' })
-  role: string;
+  role!: string;
 
   @Column({ default: false })
-  is_verified: boolean;
+  is_verified!: boolean;
 
   @Column({ nullable: true, length: 255 })
-  verification_token: string;
+  verification_token?: string;
 
   @Column({ nullable: true, length: 255 })
-  reset_token: string;
+  reset_token?: string;
 
   @CreateDateColumn()
-  created_at: Date;
+  created_at!: Date;
 
   @UpdateDateColumn()
-  updated_at: Date;
-
-  @OneToOne(() => HealthProfile, healthProfile => healthProfile.user)
-  health_profile: HealthProfile;
+  updated_at!: Date;
 }
