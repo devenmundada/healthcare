@@ -23,12 +23,12 @@ import { useAuth } from '../../contexts/AuthContext'; // Add this import
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
-  { name: 'AI Chat', href: '/chat', icon: MessageSquare },
-  { name: 'Image Analysis', href: '/analysis', icon: Settings },
+  { name: 'Features', href: '/features', icon: Settings },
   { name: 'Doctors', href: '/doctors', icon: Users },
-  { name: 'About', href: '/about', icon: Info },
-  { name: 'Emergency', href: 'tel:911', icon: AlertTriangle, isExternal: true },
   { name: 'Map Prediction', href: '/map-prediction', icon: Map },
+  { name: 'About', href: '/about', icon: Info },
+  { name: 'Emergency', href: 'tel:911', icon: AlertTriangle, isExternal: true }
+  
 ];
 
 export const Navigation: React.FC = () => {

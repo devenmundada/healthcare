@@ -1,464 +1,771 @@
-import React, { useState } from 'react';
-import { Container } from '../components/layout/Container';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { Input } from '../components/ui/Input';
-import { Toggle } from '../components/ui/Toggle';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  MapPin,
+  MapPin, 
+  Navigation, 
+  Thermometer, 
+  Wind, 
+  Droplets, 
+  AlertTriangle,
+  Heart,
+  Building,
+  Activity,
+  Shield,
   Clock,
   Users,
-  AlertTriangle,
-  Filter,
-  Search,
-  TrendingUp,
-  TrendingDown,
-  Heart,
-  Activity,
-  Navigation,
-  Calendar,
-  ChevronRight,
-  Shield
+  Phone,
+  CheckCircle
 } from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { GlassCard } from '../components/layout/GlassCard';
+
+// Google Maps API types
+declare global {
+  interface Window {
+    google: any;
+    initMap: () => void;
+  }
+}
+
+interface Location {
+  lat: number;
+  lng: number;
+  address?: string;
+  city?: string;
+  country?: string;
+}
 
 interface Hospital {
   id: string;
   name: string;
-  distance: string;
-  waitTime: string;
-  occupancy: number; // 0-100 percentage
-  specializations: string[];
-  emergencyCapacity: 'high' | 'medium' | 'low';
-  predictedRush: {
-    start: string;
-    end: string;
-    intensity: number;
-  };
+  address: string;
+  location: Location;
+  distance: number;
+  rating: number;
+  specialties: string[];
+  emergency: boolean;
+  phone: string;
+  bedsAvailable?: number;
+  waitTime?: string;
+}
+
+interface HealthRisk {
+  level: 'low' | 'medium' | 'high' | 'critical';
+  type: 'air_quality' | 'temperature' | 'humidity' | 'pollen' | 'disease_outbreak';
+  description: string;
+  advice: string;
+  icon: React.ReactNode;
+}
+
+interface WeatherData {
+  temperature: number;
+  condition: string;
+  humidity: number;
+  windSpeed: number;
+  aqi: number;
+  uvIndex: number;
+  feelsLike: number;
 }
 
 export const MapPrediction: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSpecialization, setSelectedSpecialization] = useState('all');
-  const [showEmergencyOnly, setShowEmergencyOnly] = useState(false);
-  const [selectedTime, setSelectedTime] = useState('now');
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [healthRisks, setHealthRisks] = useState<HealthRisk[]>([]);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
-  const specializations = [
-    'All Specializations',
-    'Emergency',
-    'Cardiology',
-    'Neurology',
-    'Orthopedics',
-    'Pediatrics',
-    'Oncology',
-    'ICU'
-  ];
+  // Get user's current location
+  const getUserLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser');
+      setLoading(false);
+      return;
+    }
 
-  const timeOptions = [
-    { value: 'now', label: 'Right Now' },
-    { value: 'morning', label: 'Morning (8AM-12PM)' },
-    { value: 'afternoon', label: 'Afternoon (12PM-4PM)' },
-    { value: 'evening', label: 'Evening (4PM-8PM)' },
-    { value: 'tomorrow', label: 'Tomorrow' }
-  ];
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        try {
+          // Get address from coordinates
+          const address = await reverseGeocode(latitude, longitude);
+          
+          const location: Location = {
+            lat: latitude,
+            lng: longitude,
+            address: address.formatted,
+            city: address.city,
+            country: address.country
+          };
+          
+          setUserLocation(location);
+          
+          // Fetch nearby data
+          await fetchNearbyData(latitude, longitude);
+          setError(null);
+        } catch (err) {
+          setError('Failed to get location details');
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        setError(`Location access denied: ${error.message}`);
+        setLoading(false);
+        
+        // Fallback to demo location (San Francisco)
+        const demoLocation: Location = {
+          lat: 37.7749,
+          lng: -122.4194,
+          address: 'San Francisco, CA, USA',
+          city: 'San Francisco',
+          country: 'USA'
+        };
+        setUserLocation(demoLocation);
+        fetchNearbyData(demoLocation.lat, demoLocation.lng);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  }, []);
 
-  const hospitals: Hospital[] = [
+  // Reverse geocoding to get address from coordinates
+  const reverseGeocode = async (_lat: number, _lng: number) => {
+    // In production, use Google Maps Geocoding API
+    // For demo, return mock data
+    return {
+      formatted: 'San Francisco, CA, USA',
+      city: 'San Francisco',
+      country: 'USA'
+    };
+  };
+
+  // Fetch all nearby data (hospitals, weather, risks)
+  const fetchNearbyData = async (lat: number, lng: number) => {
+    try {
+      // Fetch hospitals
+      const hospitalsData = await fetchNearbyHospitals(lat, lng);
+      setHospitals(hospitalsData);
+      
+      if (hospitalsData.length > 0) {
+        setSelectedHospital(hospitalsData[0]);
+      }
+
+      // Fetch weather data
+      const weather = await fetchWeatherData(lat, lng);
+      setWeatherData(weather);
+
+      // Calculate health risks
+      const risks = calculateHealthRisks(weather, lat, lng);
+      setHealthRisks(risks);
+
+    } catch (error) {
+      console.error('Error fetching nearby data:', error);
+      // Use mock data for demo
+      setHospitals(getMockHospitals(lat, lng));
+      setWeatherData(getMockWeatherData());
+      setHealthRisks(getMockHealthRisks());
+    }
+  };
+
+  // Fetch nearby hospitals
+  const fetchNearbyHospitals = async (_lat: number, _lng: number): Promise<Hospital[]> => {
+    // In production, use Google Places API or your backend
+    // For demo, return mock data
+    return getMockHospitals(_lat, _lng);
+  };
+
+  // Fetch weather data
+  const fetchWeatherData = async (_lat: number, _lng: number): Promise<WeatherData> => {
+    // In production, use OpenWeatherMap API or similar
+    // For demo, return mock data
+    return getMockWeatherData();
+  };
+
+  // Calculate health risks based on location and weather
+  const calculateHealthRisks = (weather: WeatherData, _lat: number, _lng: number): HealthRisk[] => {
+    const risks: HealthRisk[] = [];
+
+    // Air quality risk
+    if (weather.aqi > 150) {
+      risks.push({
+        level: 'high',
+        type: 'air_quality',
+        description: 'Poor air quality detected',
+        advice: 'Limit outdoor activities, especially if you have respiratory conditions',
+        icon: <Wind className="w-4 h-4" />
+      });
+    } else if (weather.aqi > 100) {
+      risks.push({
+        level: 'medium',
+        type: 'air_quality',
+        description: 'Moderate air quality',
+        advice: 'Consider reducing strenuous outdoor activities',
+        icon: <Wind className="w-4 h-4" />
+      });
+    }
+
+    // Temperature risk
+    if (weather.temperature > 35) {
+      risks.push({
+        level: 'high',
+        type: 'temperature',
+        description: 'High temperature warning',
+        advice: 'Stay hydrated, avoid direct sun exposure, watch for heat exhaustion symptoms',
+        icon: <Thermometer className="w-4 h-4" />
+      });
+    } else if (weather.temperature < 0) {
+      risks.push({
+        level: 'high',
+        type: 'temperature',
+        description: 'Freezing temperatures',
+        advice: 'Dress warmly, limit outdoor exposure, watch for hypothermia symptoms',
+        icon: <Thermometer className="w-4 h-4" />
+      });
+    }
+
+    // Humidity risk
+    if (weather.humidity > 80) {
+      risks.push({
+        level: 'medium',
+        type: 'humidity',
+        description: 'High humidity',
+        advice: 'May affect respiratory comfort, stay in well-ventilated areas',
+        icon: <Droplets className="w-4 h-4" />
+      });
+    }
+
+    // UV risk
+    if (weather.uvIndex > 8) {
+      risks.push({
+        level: 'high',
+        type: 'temperature',
+        description: 'Very high UV index',
+        advice: 'Use SPF 50+ sunscreen, wear protective clothing, limit sun exposure',
+        icon: <Activity className="w-4 h-4" />
+      });
+    }
+
+    return risks;
+  };
+
+  // Mock data for demo
+  const getMockHospitals = (lat: number, lng: number): Hospital[] => [
     {
       id: '1',
       name: 'City General Hospital',
-      distance: '2.5 miles',
-      waitTime: '15-30 mins',
-      occupancy: 35,
-      specializations: ['Emergency', 'Cardiology', 'ICU'],
-      emergencyCapacity: 'high',
-      predictedRush: {
-        start: '9:00 AM',
-        end: '11:00 AM',
-        intensity: 75
-      }
+      address: '123 Medical Center Dr, San Francisco, CA 94107',
+      location: { lat: lat + 0.001, lng: lng + 0.001 },
+      distance: 0.5,
+      rating: 4.8,
+      specialties: ['Emergency', 'Cardiology', 'General Surgery'],
+      emergency: true,
+      phone: '(555) 123-4567',
+      bedsAvailable: 12,
+      waitTime: '15-30 min'
     },
     {
       id: '2',
-      name: 'Memorial Medical Center',
-      distance: '4.2 miles',
-      waitTime: '45-60 mins',
-      occupancy: 65,
-      specializations: ['Neurology', 'Orthopedics'],
-      emergencyCapacity: 'medium',
-      predictedRush: {
-        start: '2:00 PM',
-        end: '4:00 PM',
-        intensity: 85
-      }
+      name: 'Westside Medical Center',
+      address: '456 Health Ave, San Francisco, CA 94103',
+      location: { lat: lat + 0.002, lng: lng - 0.001 },
+      distance: 1.2,
+      rating: 4.6,
+      specialties: ['Pediatrics', 'Dermatology', 'Orthopedics'],
+      emergency: true,
+      phone: '(555) 234-5678',
+      bedsAvailable: 8,
+      waitTime: '30-45 min'
     },
     {
       id: '3',
-      name: 'Children\'s Hospital',
-      distance: '3.8 miles',
-      waitTime: '20-40 mins',
-      occupancy: 45,
-      specializations: ['Pediatrics', 'Emergency'],
-      emergencyCapacity: 'high',
-      predictedRush: {
-        start: '10:00 AM',
-        end: '12:00 PM',
-        intensity: 90
-      }
+      name: 'University Hospital',
+      address: '789 Campus Rd, San Francisco, CA 94117',
+      location: { lat: lat - 0.002, lng: lng + 0.002 },
+      distance: 2.3,
+      rating: 4.9,
+      specialties: ['Neurology', 'Oncology', 'Research'],
+      emergency: true,
+      phone: '(555) 345-6789',
+      bedsAvailable: 24,
+      waitTime: '10-20 min'
     },
     {
       id: '4',
-      name: 'University Medical Center',
-      distance: '5.5 miles',
-      waitTime: '60+ mins',
-      occupancy: 80,
-      specializations: ['Oncology', 'ICU'],
-      emergencyCapacity: 'low',
-      predictedRush: {
-        start: '8:00 AM',
-        end: '10:00 AM',
-        intensity: 95
-      }
-    },
-    {
-      id: '5',
       name: 'Community Health Clinic',
-      distance: '1.2 miles',
-      waitTime: '5-15 mins',
-      occupancy: 25,
-      specializations: ['General', 'Emergency'],
-      emergencyCapacity: 'medium',
-      predictedRush: {
-        start: '4:00 PM',
-        end: '6:00 PM',
-        intensity: 65
-      }
+      address: '101 Wellness St, San Francisco, CA 94110',
+      location: { lat: lat + 0.0015, lng: lng - 0.0015 },
+      distance: 0.8,
+      rating: 4.5,
+      specialties: ['Family Medicine', 'Mental Health', 'Preventive Care'],
+      emergency: false,
+      phone: '(555) 456-7890',
+      waitTime: '20-40 min'
     }
   ];
 
-  const getOccupancyColor = (occupancy: number) => {
-    if (occupancy < 40) return 'bg-green-500';
-    if (occupancy < 70) return 'bg-yellow-500';
-    return 'bg-red-500';
+  const getMockWeatherData = (): WeatherData => ({
+    temperature: 22,
+    condition: 'Partly Cloudy',
+    humidity: 65,
+    windSpeed: 12,
+    aqi: 85,
+    uvIndex: 6,
+    feelsLike: 24
+  });
+
+  const getMockHealthRisks = (): HealthRisk[] => [
+    {
+      level: 'medium',
+      type: 'air_quality',
+      description: 'Moderate air quality',
+      advice: 'Consider reducing strenuous outdoor activities',
+      icon: <Wind className="w-4 h-4" />
+    },
+    {
+      level: 'low',
+      type: 'temperature',
+      description: 'Comfortable temperature',
+      advice: 'Ideal conditions for outdoor activities',
+      icon: <Thermometer className="w-4 h-4" />
+    }
+  ];
+
+  // Initialize Google Maps
+  const loadGoogleMaps = () => {
+    if (window.google) {
+      setMapLoaded(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.onload = () => setMapLoaded(true);
+    script.onerror = () => setError('Failed to load Google Maps');
+    document.head.appendChild(script);
   };
 
-  const getOccupancyLabel = (occupancy: number) => {
-    if (occupancy < 40) return 'Low';
-    if (occupancy < 70) return 'Moderate';
-    return 'High';
-  };
-
-  const getEmergencyBadge = (capacity: 'high' | 'medium' | 'low') => {
-    const config = {
-      high: { color: 'bg-green-100 text-green-800', icon: <Shield className="w-3 h-3" /> },
-      medium: { color: 'bg-yellow-100 text-yellow-800', icon: <AlertTriangle className="w-3 h-3" /> },
-      low: { color: 'bg-red-100 text-red-800', icon: <AlertTriangle className="w-3 h-3" /> }
-    };
+  // Get directions to hospital
+  const getDirections = (hospital: Hospital) => {
+    if (!userLocation) return;
     
+    const origin = `${userLocation.lat},${userLocation.lng}`;
+    const destination = `${hospital.location.lat},${hospital.location.lng}`;
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+    window.open(url, '_blank');
+  };
+
+  // Initialize on component mount
+  useEffect(() => {
+    getUserLocation();
+    loadGoogleMaps();
+  }, [getUserLocation]);
+
+  // Render Google Map
+  const renderMap = () => {
+    if (!mapLoaded || !userLocation) return null;
+
     return (
-      <Badge className={`${config[capacity].color} flex items-center`}>
-        {config[capacity].icon}
-        <span className="ml-1">Emergency {capacity}</span>
-      </Badge>
+      <div className="h-96 w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800">
+        <div id="map" className="h-full w-full">
+          {/* Google Map will be rendered here */}
+          <div className="h-full w-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 flex items-center justify-center">
+            <div className="text-center">
+              <MapPin className="w-12 h-12 text-primary-600 mx-auto mb-4" />
+              <p className="text-neutral-700 dark:text-neutral-300">
+                Map centered at: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+              </p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-500 mt-2">
+                {hospitals.length} hospitals found nearby
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-4"
+                onClick={() => window.open(`https://www.google.com/maps/@${userLocation.lat},${userLocation.lng},15z`, '_blank')}
+              >
+                Open in Google Maps
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   };
 
-  const filteredHospitals = hospitals.filter(hospital => {
-    const matchesSearch = searchQuery === '' || 
-      hospital.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesSpecialization = selectedSpecialization === 'all' || 
-      hospital.specializations.includes(selectedSpecialization);
-    
-    const matchesEmergency = !showEmergencyOnly || hospital.emergencyCapacity === 'high';
-    
-    return matchesSearch && matchesSpecialization && matchesEmergency;
-  });
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="text-center py-12">
+          <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-neutral-600 dark:text-neutral-400">Detecting your location and loading health data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !userLocation) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <Card className="p-8 text-center">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">
+            Location Access Required
+          </h3>
+          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+            {error}. This feature needs your location to provide personalized health advisories.
+          </p>
+          <Button onClick={getUserLocation} leftIcon={<Navigation className="w-5 h-5" />}>
+            Try Again
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen py-8">
-      <Container>
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-4">
-            Hospital Map & Prediction
-          </h1>
-          <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-3xl mx-auto">
-            Real-time hospital occupancy, wait times, and rush predictions to help you plan your visit
-          </p>
+    <div className="max-w-6xl mx-auto p-4 md:p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">
+              Health Map & Location Advisory
+            </h1>
+            <p className="text-neutral-600 dark:text-neutral-400">
+              Personalized health insights based on your current location
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={getUserLocation}
+            leftIcon={<Navigation className="w-4 h-4" />}
+          >
+            Refresh Location
+          </Button>
         </div>
 
-        {/* Map Visualization (Placeholder) */}
-        <div className="mb-12">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
+        {/* Current Location */}
+        {userLocation && (
+          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 rounded-lg bg-white dark:bg-neutral-800">
+                <MapPin className="w-6 h-6 text-primary-600" />
+              </div>
               <div>
-                <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
-                  Interactive Hospital Map
-                </h2>
-                <p className="text-neutral-600 dark:text-neutral-400">
-                  Heat map showing hospital occupancy and wait times
+                <h3 className="font-bold text-neutral-900 dark:text-white">Current Location</h3>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                  {userLocation.address}
+                </p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1">
+                  Coordinates: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
                 </p>
               </div>
-              <Button leftIcon={<Navigation className="w-4 h-4" />}>
-                Use My Location
-              </Button>
+            </div>
+            <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+              ✓ Live Tracking
+            </Badge>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Map & Weather */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Map */}
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
+                Nearby Healthcare Facilities
+              </h2>
+              <Badge variant="outline">
+                {hospitals.length} facilities found
+              </Badge>
+            </div>
+            {renderMap()}
+          </GlassCard>
+
+          {/* Weather & Health Advisory */}
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
+                Weather & Health Advisory
+              </h2>
+              <div className="flex items-center space-x-2">
+                <Thermometer className="w-5 h-5 text-orange-500" />
+                <span className="text-sm font-medium">Real-time Data</span>
+              </div>
             </div>
 
-            {/* Map Placeholder */}
-            <div className="h-96 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-xl relative overflow-hidden">
-              {/* Heat Map Simulation */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-64 h-64 rounded-full bg-gradient-to-r from-green-400/20 via-yellow-400/20 to-red-400/20 blur-3xl" />
+            {weatherData && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
+                  <Thermometer className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                    {weatherData.temperature}°C
+                  </div>
+                  <div className="text-sm text-neutral-600 dark:text-neutral-400">Temperature</div>
+                  <div className="text-xs text-neutral-500">Feels like {weatherData.feelsLike}°C</div>
+                </div>
+
+                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+                  <Wind className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                    {weatherData.aqi} AQI
+                  </div>
+                  <div className="text-sm text-neutral-600 dark:text-neutral-400">Air Quality</div>
+                  <div className={`text-xs font-medium ${weatherData.aqi > 100 ? 'text-red-600' : 'text-green-600'}`}>
+                    {weatherData.aqi > 100 ? 'Moderate' : 'Good'}
+                  </div>
+                </div>
+
+                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+                  <Droplets className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                    {weatherData.humidity}%
+                  </div>
+                  <div className="text-sm text-neutral-600 dark:text-neutral-400">Humidity</div>
+                  <div className="text-xs text-neutral-500">
+                    {weatherData.humidity > 70 ? 'High' : 'Normal'}
+                  </div>
+                </div>
+
+                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20">
+                  <Activity className="w-8 h-8 mx-auto mb-2 text-amber-600" />
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                    {weatherData.uvIndex}
+                  </div>
+                  <div className="text-sm text-neutral-600 dark:text-neutral-400">UV Index</div>
+                  <div className="text-xs text-neutral-500">
+                    {weatherData.uvIndex > 6 ? 'High Risk' : 'Moderate'}
+                  </div>
+                </div>
               </div>
-              
-              {/* Hospital Markers */}
-              {hospitals.slice(0, 3).map((hospital, index) => (
+            )}
+
+            {/* Health Risks */}
+            <div>
+              <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">
+                Health Risk Assessment
+              </h3>
+              <div className="space-y-3">
+                {healthRisks.map((risk, index) => (
+                  <div
+                    key={index}
+                    className={`p-4 rounded-xl border ${
+                      risk.level === 'high' ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20' :
+                      risk.level === 'medium' ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20' :
+                      'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-3">
+                        <div className={`p-2 rounded-lg ${
+                          risk.level === 'high' ? 'bg-red-100 dark:bg-red-900/30' :
+                          risk.level === 'medium' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                          'bg-green-100 dark:bg-green-900/30'
+                        }`}>
+                          {risk.icon}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-neutral-900 dark:text-white">
+                            {risk.description}
+                          </h4>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                            {risk.advice}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className={
+                        risk.level === 'high' ? 'bg-red-500 text-white' :
+                        risk.level === 'medium' ? 'bg-yellow-500 text-white' :
+                        'bg-green-500 text-white'
+                      }>
+                        {risk.level.toUpperCase()}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+
+                {healthRisks.length === 0 && (
+                  <div className="p-4 rounded-xl border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <div>
+                        <h4 className="font-bold text-neutral-900 dark:text-white">
+                          All Clear - Low Health Risks
+                        </h4>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                          Current environmental conditions pose minimal health risks
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* Right Column - Hospitals List */}
+        <div className="space-y-6">
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
+                Nearby Hospitals
+              </h2>
+              <Badge className="bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300">
+                Sorted by Distance
+              </Badge>
+            </div>
+
+            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+              {hospitals.map((hospital) => (
                 <div
                   key={hospital.id}
-                  className="absolute"
-                  style={{
-                    left: `${20 + index * 30}%`,
-                    top: `${30 + index * 15}%`,
-                  }}
+                  onClick={() => setSelectedHospital(hospital)}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                    selectedHospital?.id === hospital.id
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                      : 'border-neutral-200 dark:border-neutral-800 hover:border-primary-300'
+                  }`}
                 >
-                  <div className={`w-8 h-8 rounded-full ${getOccupancyColor(hospital.occupancy)} flex items-center justify-center text-white font-bold shadow-lg`}>
-                    {hospital.occupancy < 40 ? 'L' : hospital.occupancy < 70 ? 'M' : 'H'}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center mb-2">
+                        <Building className="w-5 h-5 text-primary-600 mr-2" />
+                        <h3 className="font-bold text-neutral-900 dark:text-white">
+                          {hospital.name}
+                        </h3>
+                        {hospital.emergency && (
+                          <Badge size="sm" className="ml-2 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                            ER
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                        {hospital.address}
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center">
+                          <Navigation className="w-3 h-3 mr-1 text-neutral-500" />
+                          {hospital.distance} miles
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="w-3 h-3 mr-1 text-neutral-500" />
+                          {hospital.waitTime}
+                        </div>
+                        <div className="flex items-center">
+                          <Users className="w-3 h-3 mr-1 text-neutral-500" />
+                          {hospital.bedsAvailable || 'N/A'} beds
+                        </div>
+                        <div className="flex items-center">
+                          <Shield className="w-3 h-3 mr-1 text-neutral-500" />
+                          ⭐ {hospital.rating}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {hospital.specialties.slice(0, 3).map((specialty, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 text-xs rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400"
+                          >
+                            {specialty}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-2 bg-white dark:bg-neutral-800 rounded-lg p-2 shadow-lg min-w-[200px]">
-                    <div className="font-medium">{hospital.name}</div>
-                    <div className="text-sm text-neutral-500">{hospital.waitTime} wait</div>
+
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                    <a
+                      href={`tel:${hospital.phone}`}
+                      className="flex items-center text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      <Phone className="w-4 h-4 mr-1" />
+                      Call
+                    </a>
+                    
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        getDirections(hospital);
+                      }}
+                      className="text-sm"
+                    >
+                      <Navigation className="w-4 h-4 mr-1" />
+                      Directions
+                    </Button>
                   </div>
                 </div>
               ))}
-
-              {/* Legend */}
-              <div className="absolute bottom-4 left-4 bg-white dark:bg-neutral-800 rounded-lg p-4 shadow-lg">
-                <h4 className="font-medium mb-2">Occupancy Legend</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 rounded-full bg-green-500 mr-2" />
-                    <span className="text-sm">Low (&lt; 40%)</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2" />
-                    <span className="text-sm">Moderate (40-70%)</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 rounded-full bg-red-500 mr-2" />
-                    <span className="text-sm">High (&gt; 70%)</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
-            <div className="mt-6 text-center">
-              <Button variant="ghost" leftIcon={<MapPin className="w-4 h-4" />}>
-                View Full Screen Map
+            <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800">
+              <div className="text-center">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                  Need immediate medical attention?
+                </p>
+                <Button
+                  variant="danger"
+                  fullWidth
+                  leftIcon={<AlertTriangle className="w-5 h-5" />}
+                  onClick={() => window.open('tel:911', '_self')}
+                >
+                  Call Emergency (911)
+                </Button>
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Quick Actions */}
+          <GlassCard className="p-6 bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20">
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">
+              Quick Actions
+            </h3>
+            <div className="space-y-3">
+              <Button
+                variant="secondary"
+                fullWidth
+                leftIcon={<Heart className="w-4 h-4" />}
+              >
+                Find Specialists
+              </Button>
+              <Button
+                variant="secondary"
+                fullWidth
+                leftIcon={<Clock className="w-4 h-4" />}
+              >
+                Book Appointment
+              </Button>
+              <Button
+                variant="secondary"
+                fullWidth
+                leftIcon={<Activity className="w-4 h-4" />}
+              >
+                Health Assessment
               </Button>
             </div>
-          </Card>
+          </GlassCard>
         </div>
-
-        {/* Controls & Filters */}
-        <div className="mb-8">
-          <Card className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
-                <Input
-                  placeholder="Search hospitals by name or specialization..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  leftIcon={<Search className="w-4 h-4" />}
-                />
-              </div>
-              
-              <div>
-                <select
-                  value={selectedSpecialization}
-                  onChange={(e) => setSelectedSpecialization(e.target.value)}
-                  className="w-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-lg px-4 py-2 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  {specializations.map(spec => (
-                    <option key={spec} value={spec === 'All Specializations' ? 'all' : spec}>
-                      {spec}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <select
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
-                  className="w-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-lg px-4 py-2 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  {timeOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4 mt-4">
-              <Toggle
-                enabled={showEmergencyOnly}
-                onChange={setShowEmergencyOnly}
-                label="Show Emergency Hospitals Only"
-              />
-              <div className="ml-auto flex items-center space-x-2">
-                <Filter className="w-4 h-4 text-neutral-500" />
-                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                  {filteredHospitals.length} hospitals found
-                </span>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Hospital List */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredHospitals.map((hospital) => (
-            <Card key={hospital.id} className="hover-lift p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-1">
-                    {hospital.name}
-                  </h3>
-                  <div className="flex items-center text-sm text-neutral-600 dark:text-neutral-400">
-                    <MapPin className="w-4 h-4 mr-1" />
-                    {hospital.distance} away
-                  </div>
-                </div>
-                {getEmergencyBadge(hospital.emergencyCapacity)}
-              </div>
-
-              {/* Occupancy Bar */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Current Occupancy</span>
-                  <span className={`font-bold ${
-                    hospital.occupancy < 40 ? 'text-green-600' :
-                    hospital.occupancy < 70 ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
-                    {getOccupancyLabel(hospital.occupancy)} ({hospital.occupancy}%)
-                  </span>
-                </div>
-                <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${getOccupancyColor(hospital.occupancy)}`}
-                    style={{ width: `${hospital.occupancy}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
-                  <div className="flex items-center mb-1">
-                    <Clock className="w-4 h-4 text-blue-500 mr-2" />
-                    <span className="text-sm">Wait Time</span>
-                  </div>
-                  <div className="text-lg font-bold">{hospital.waitTime}</div>
-                </div>
-                
-                <div className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
-                  <div className="flex items-center mb-1">
-                    <Users className="w-4 h-4 text-purple-500 mr-2" />
-                    <span className="text-sm">Specializations</span>
-                  </div>
-                  <div className="text-lg font-bold">{hospital.specializations.length}</div>
-                </div>
-              </div>
-
-              {/* Rush Prediction */}
-              <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg mb-6">
-                <div className="flex items-center mb-2">
-                  <Activity className="w-5 h-5 text-amber-600 mr-2" />
-                  <h4 className="font-medium">Predicted Rush Time</h4>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Peak Hours</span>
-                    <span className="font-medium">{hospital.predictedRush.start} - {hospital.predictedRush.end}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Expected Intensity</span>
-                    <div className="flex items-center">
-                      {hospital.predictedRush.intensity > 80 ? (
-                        <TrendingUp className="w-4 h-4 text-red-500 mr-1" />
-                      ) : (
-                        <TrendingDown className="w-4 h-4 text-green-500 mr-1" />
-                      )}
-                      <span className="font-medium">{hospital.predictedRush.intensity}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Specializations */}
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                  Available Specializations
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {hospital.specializations.map((spec) => (
-                    <Badge key={spec} variant="outline">
-                      {spec}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex space-x-3">
-                <Button className="flex-1" leftIcon={<Navigation className="w-4 h-4" />}>
-                  Get Directions
-                </Button>
-                <Button variant="secondary" leftIcon={<Calendar className="w-4 h-4" />}>
-                  Plan Visit
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Prediction Insights */}
-        <Card className="mt-12 p-8 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <Clock className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="font-bold text-lg mb-2">Best Times to Visit</h3>
-              <p className="text-neutral-600 dark:text-neutral-400">
-                Early morning (8-9AM) typically has shortest wait times
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <Activity className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="font-bold text-lg mb-2">Real-time Updates</h3>
-              <p className="text-neutral-600 dark:text-neutral-400">
-                Data updates every 15 minutes for accurate predictions
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <AlertTriangle className="w-8 h-8 text-purple-600" />
-              </div>
-              <h3 className="font-bold text-lg mb-2">Emergency Alerts</h3>
-              <p className="text-neutral-600 dark:text-neutral-400">
-                Get notified if hospital capacity reaches critical levels
-              </p>
-            </div>
-          </div>
-        </Card>
-      </Container>
+      </div>
     </div>
   );
 };

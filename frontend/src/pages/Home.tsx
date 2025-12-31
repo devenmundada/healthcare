@@ -57,6 +57,7 @@ export const Home: React.FC = () => {
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<MedicalInsight | null>(null);
   const [showArticleModal, setShowArticleModal] = useState(false);
+  
 
 
 
@@ -217,24 +218,52 @@ export const Home: React.FC = () => {
 
   // Auth Toggle Button Component
   const AuthToggleButton: React.FC = () => {
-    const { isAuthenticated, toggleAuth } = useAuth();
+    const { isAuthenticated, logout } = useAuth();
 
     return (
       <Button
         variant="secondary"
         size="sm"
         leftIcon={isAuthenticated ? <LogOut className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
-        onClick={toggleAuth}
+        onClick={() => {
+          if (isAuthenticated) {
+            logout();
+          } else {
+            // In a real app, this would open a login modal
+            window.location.href = '/signup';
+          }
+        }}
         className="border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300"
       >
-        {isAuthenticated ? 'Logout Demo' : 'Login Demo'}
+        {isAuthenticated ? 'Logout' : 'Login'}
       </Button>
     );
   };
 
   // Conditional Content Component
   const AuthConditionalContent: React.FC = () => {
-    const { isAuthenticated, user, appointments, notifications } = useAuth();
+    const { isAuthenticated, user } = useAuth();
+    // Provide default empty arrays to prevent undefined errors
+    // These would normally come from the backend/API
+    const appointments: Array<{
+      id: string | number;
+      type: string;
+      status: string;
+      doctor: string;
+      specialization: string;
+      date: string;
+      time: string;
+      duration: string;
+    }> = [];
+    const notifications: Array<{
+      id: string | number;
+      type: string;
+      title: string;
+      message: string;
+      timestamp: string;
+      read: boolean;
+      priority: string;
+    }> = [];
 
     if (!isAuthenticated || !user) {
       return (
@@ -329,7 +358,7 @@ export const Home: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              {appointments.map((apt) => (
+              {appointments.map((apt: any) => (
                 <GlassCard key={apt.id} className="p-6 hover-lift">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -408,12 +437,12 @@ export const Home: React.FC = () => {
                 Health Notifications
               </h3>
               <Badge variant="outline">
-                {notifications.filter(n => !n.read).length} New
+                {notifications.filter((n: any) => !n.read).length} New
               </Badge>
             </div>
 
             <div className="space-y-4">
-              {notifications.map((notification) => (
+              {notifications.map((notification: any) => (
                 <GlassCard
                   key={notification.id}
                   className={`p-4 ${!notification.read ? 'bg-primary-50/50 dark:bg-primary-900/20' : ''}`}
@@ -475,7 +504,7 @@ export const Home: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-neutral-700 dark:text-neutral-300">Appointments</span>
                   <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                    {appointments.filter(a => a.status === 'Scheduled').length} Upcoming
+                    {appointments.filter((a: any) => a.status === 'Scheduled').length} Upcoming
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
@@ -655,12 +684,15 @@ export const Home: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
-              <GlassCard
+              <div
                 key={index}
-                hoverable
-                className="p-6 border-0 hover-lift fade-in-up"
+                className="fade-in-up"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
+                <GlassCard
+                  hoverable
+                  className="p-6 border-0 hover-lift"
+                >
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
@@ -693,6 +725,7 @@ export const Home: React.FC = () => {
                   </div>
                 </div>
               </GlassCard>
+              </div>
             ))}
           </div>
         </Container>

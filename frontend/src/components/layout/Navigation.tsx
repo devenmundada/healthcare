@@ -20,19 +20,20 @@ import {
     LogOut,
     User,
     Calendar,
-    Heart
+    Heart,
+    Settings
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Navigation items configuration
 const navigation = [
     { name: 'Home', href: '/', icon: Home },
-    { name: 'AI Chat', href: '/chat', icon: MessageSquare },
-    { name: 'Image Analysis', href: '/analysis', icon: Image },
+    { name: 'Features', href: '/features', icon: Settings },
     { name: 'Doctors', href: '/doctors', icon: Users },
+    { name: 'Map Prediction', href: '/map-prediction', icon: Map },
     { name: 'About', href: '/about', icon: Info },
     { name: 'Emergency', href: 'tel:911', icon: AlertTriangle, isExternal: true },
-    { name: 'Map Prediction', href: '/map-prediction', icon: Map },
+    
 ];
 
 export const Navigation: React.FC = () => {
@@ -114,14 +115,6 @@ export const Navigation: React.FC = () => {
                                 {item.name}
                             </NavLink>
                         ))}
-
-                        {/* Real-time status indicator */}
-                        <div className="hidden lg:flex items-center px-3 py-1 bg-green-50 dark:bg-green-900/30 rounded-full ml-4">
-                            <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse" />
-                            <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                                AI Systems: Operational
-                            </span>
-                        </div>
                     </div>
 
                     {/* Right side actions */}
@@ -228,14 +221,6 @@ export const Navigation: React.FC = () => {
                             </div>
                         ) : (
                             <div className="hidden sm:flex items-center space-x-3">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleLogin}
-                                    leftIcon={<UserCircle className="w-4 h-4" />}
-                                >
-                                    Sign In
-                                </Button>
 
                                 <Button
                                     variant="primary"
