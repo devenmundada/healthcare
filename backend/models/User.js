@@ -35,10 +35,12 @@ class User {
         [name, email, phone, hashedPassword, true]
       );
 
+      const userId = result.rows[0].id;
+
       // Create health profile for the user
       await client.query(
         `INSERT INTO health_profiles (user_id) VALUES ($1)`,
-        [result.rows[0].id]
+        [userId]
       );
 
       // Commit transaction
@@ -47,6 +49,7 @@ class User {
       return result.rows[0];
     } catch (error) {
       await client.query('ROLLBACK');
+      console.error('User.create error:', error);
       throw error;
     } finally {
       client.release();
@@ -64,6 +67,7 @@ class User {
       );
       return result.rows[0];
     } catch (error) {
+      console.error('User.findByEmail error:', error);
       throw error;
     }
   }
@@ -79,6 +83,7 @@ class User {
       );
       return result.rows[0];
     } catch (error) {
+      console.error('User.findById error:', error);
       throw error;
     }
   }
@@ -91,9 +96,9 @@ class User {
             u.id, u.name, u.email, u.phone, u.role, u.is_verified,
             u.created_at, u.updated_at,
             hp.age, hp.gender, hp.blood_type, hp.height, hp.weight,
-            hp.medical_conditions, hp.allergies, hp.medications,
+            hp.bmi, hp.medical_conditions, hp.allergies, hp.medications,
             hp.emergency_contact_name, hp.emergency_contact_phone,
-            hp.insurance_provider, hp.insurance_id
+            hp.insurance_provider, hp.insurance_id, hp.health_metrics
          FROM users u
          LEFT JOIN health_profiles hp ON u.id = hp.user_id
          WHERE u.id = $1`,
@@ -101,6 +106,7 @@ class User {
       );
       return result.rows[0];
     } catch (error) {
+      console.error('User.getUserWithProfile error:', error);
       throw error;
     }
   }
@@ -152,6 +158,7 @@ class User {
         blood_type: profileData.bloodType,
         height: profileData.height,
         weight: profileData.weight,
+        bmi: profileData.bmi,
         medical_conditions: profileData.medicalConditions,
         allergies: profileData.allergies,
         medications: profileData.medications,
@@ -205,6 +212,7 @@ class User {
       return await this.getUserWithProfile(userId);
     } catch (error) {
       await client.query('ROLLBACK');
+      console.error('User.updateProfile error:', error);
       throw error;
     } finally {
       client.release();
@@ -213,7 +221,12 @@ class User {
 
   // Verify password
   static async verifyPassword(password, hashedPassword) {
-    return await bcrypt.compare(password, hashedPassword);
+    try {
+      return await bcrypt.compare(password, hashedPassword);
+    } catch (error) {
+      console.error('User.verifyPassword error:', error);
+      throw error;
+    }
   }
 
   // Generate JWT token
@@ -222,18 +235,38 @@ class User {
       { 
         id: user.id, 
         email: user.email, 
-        role: user.role 
+        role: user.role || 'patient'
       },
       process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this',
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
   }
 
-  // Validate signup data
-  static validateSignup(req) {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      throw new Error(errors.array()[0].msg);
+  // Validate JWT token
+  static verifyToken(token) {
+    try {
+      return jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this');
+    } catch (error) {
+      console.error('User.verifyToken error:', error);
+      throw error;
+    }
+  }
+
+  // Update password
+  static async updatePassword(userId, newPassword) {
+    try {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      
+      await pool.query(
+        'UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [hashedPassword, userId]
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('User.updatePassword error:', error);
+      throw error;
     }
   }
 }
