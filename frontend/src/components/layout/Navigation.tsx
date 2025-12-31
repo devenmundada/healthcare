@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Logo } from '../shared/Logo';
 import { Button } from '../ui/Button';
 import {
@@ -9,7 +9,6 @@ import {
     Image,
     Home,
     Users,
-    Settings,
     UserCircle,
     Moon,
     Sun,
@@ -17,12 +16,19 @@ import {
     BellRing,
     Info,
     AlertTriangle,
-    Map
+    Map,
+    LogOut,
+    User,
+    Calendar,
+    Heart
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
+// Navigation items configuration
 const navigation = [
     { name: 'Home', href: '/', icon: Home },
-    { name: 'Features', href: '/features', icon: Settings },
+    { name: 'AI Chat', href: '/chat', icon: MessageSquare },
+    { name: 'Image Analysis', href: '/analysis', icon: Image },
     { name: 'Doctors', href: '/doctors', icon: Users },
     { name: 'About', href: '/about', icon: Info },
     { name: 'Emergency', href: 'tel:911', icon: AlertTriangle, isExternal: true },
@@ -32,8 +38,11 @@ const navigation = [
 export const Navigation: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
-    const [emergencyAlerts, setEmergencyAlerts] = useState(0);
+    const [emergencyAlerts, _setEmergencyAlerts] = useState(0);
+    const { isAuthenticated, user, logout } = useAuth();
+    const navigate = useNavigate();
 
+    // Toggle dark mode
     const toggleDarkMode = () => {
         setDarkMode(!darkMode);
         if (!darkMode) {
@@ -41,6 +50,45 @@ export const Navigation: React.FC = () => {
         } else {
             document.documentElement.classList.remove('dark');
         }
+    };
+
+    // Auth handlers
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+        setIsMenuOpen(false);
+    };
+
+    const handleLogin = () => {
+        navigate('/login');
+        setIsMenuOpen(false);
+    };
+
+    const handleSignup = () => {
+        navigate('/signup');
+        setIsMenuOpen(false);
+    };
+
+    // Handle emergency call with confirmation
+    const handleEmergencyCall = () => {
+        const confirmCall = window.confirm(
+            'This will call emergency services (911). Use only for real medical emergencies. Proceed?'
+        );
+        if (confirmCall) {
+            window.location.href = 'tel:911';
+        }
+        setIsMenuOpen(false);
+    };
+
+    // NavLink active className helper
+    const getNavLinkClassName = (isActive: boolean, isMobile = false) => {
+        const base = isMobile
+            ? 'flex items-center px-3 py-2 rounded-lg text-base font-medium'
+            : 'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors';
+
+        return isActive
+            ? `${base} bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300`
+            : `${base} text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800`;
     };
 
     return (
@@ -60,12 +108,7 @@ export const Navigation: React.FC = () => {
                             <NavLink
                                 key={item.name}
                                 to={item.href}
-                                className={({ isActive }) =>
-                                    `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
-                                        ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-                                        : 'text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                                    }`
-                                }
+                                className={({ isActive }) => getNavLinkClassName(isActive)}
                             >
                                 <item.icon className="w-4 h-4 mr-2" />
                                 {item.name}
@@ -102,6 +145,7 @@ export const Navigation: React.FC = () => {
                             )}
                         </Button>
 
+                        {/* Dark mode toggle */}
                         <Button
                             variant="ghost"
                             size="sm"
@@ -116,22 +160,92 @@ export const Navigation: React.FC = () => {
                             )}
                         </Button>
 
-                        {/* Sign In Link */}
-                        <NavLink
-                            to="/login"
-                            className="hidden sm:inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
-                        >
-                            <UserCircle className="w-4 h-4 mr-2" />
-                            Sign In
-                        </NavLink>
+                        {/* Desktop Auth Section */}
+                        {isAuthenticated && user ? (
+                            <div className="hidden sm:flex items-center space-x-4">
+                                {/* Appointments Link */}
+                                <NavLink
+                                    to="/appointments"
+                                    className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
+                                >
+                                    <Calendar className="w-4 h-4 mr-2" />
+                                    Appointments
+                                </NavLink>
 
-                        {/* Sign Up Link */}
-                        <NavLink
-                            to="/signup"
-                            className="hidden sm:inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-                        >
-                            Sign Up
-                        </NavLink>
+                                {/* User Dropdown */}
+                                <div className="relative group">
+                                    <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                        <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                            {user.avatar ? (
+                                                <img
+                                                    src={user.avatar}
+                                                    alt={user.name}
+                                                    className="w-8 h-8 rounded-full"
+                                                />
+                                            ) : (
+                                                <User className="w-4 h-4 text-primary-600" />
+                                            )}
+                                        </div>
+                                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                            Hi, {user.name.split(' ')[0]}
+                                        </span>
+                                    </button>
+
+                                    {/* Dropdown Menu */}
+                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-lg shadow-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-neutral-200 dark:border-neutral-700">
+                                        <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+                                            <p className="text-sm font-medium text-neutral-900 dark:text-white">{user.name}</p>
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">{user.email}</p>
+                                        </div>
+
+                                        <NavLink
+                                            to="/profile"
+                                            className="flex items-center px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            <User className="w-4 h-4 mr-3" />
+                                            My Profile
+                                        </NavLink>
+
+                                        <NavLink
+                                            to="/health"
+                                            className="flex items-center px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            <Heart className="w-4 h-4 mr-3" />
+                                            Health Dashboard
+                                        </NavLink>
+
+                                        <button
+                                            onClick={handleLogout}
+                                            className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                                        >
+                                            <LogOut className="w-4 h-4 mr-3" />
+                                            Sign Out
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="hidden sm:flex items-center space-x-3">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleLogin}
+                                    leftIcon={<UserCircle className="w-4 h-4" />}
+                                >
+                                    Sign In
+                                </Button>
+
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={handleSignup}
+                                >
+                                    Sign Up
+                                </Button>
+                            </div>
+                        )}
 
                         {/* Mobile menu button */}
                         <button
@@ -152,24 +266,22 @@ export const Navigation: React.FC = () => {
                 {isMenuOpen && (
                     <div className="md:hidden border-t border-neutral-200 dark:border-neutral-800 mt-2 pt-2 pb-3">
                         <div className="px-2 space-y-1">
+                            {/* Navigation links */}
                             {navigation.map((item) => (
                                 <NavLink
                                     key={item.name}
                                     to={item.href}
                                     onClick={() => setIsMenuOpen(false)}
-                                    className={({ isActive }) =>
-                                        `flex items-center px-3 py-2 rounded-lg text-base font-medium ${isActive
-                                            ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-                                            : 'text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                                        }`
-                                    }
+                                    className={({ isActive }) => getNavLinkClassName(isActive, true)}
                                 >
                                     <item.icon className="w-5 h-5 mr-3" />
                                     {item.name}
                                 </NavLink>
                             ))}
 
+                            {/* Mobile menu actions */}
                             <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
+                                {/* Dark Mode Toggle */}
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -180,31 +292,89 @@ export const Navigation: React.FC = () => {
                                     {darkMode ? 'Light Mode' : 'Dark Mode'}
                                 </Button>
 
-                                {/* Mobile Sign In Link */}
-                                <NavLink
-                                    to="/login"
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800 transition-colors w-full"
-                                >
-                                    <UserCircle className="w-4 h-4 mr-2" />
-                                    Sign In
-                                </NavLink>
+                                {/* Mobile Auth Section */}
+                                {isAuthenticated && user ? (
+                                    <>
+                                        {/* User Info */}
+                                        <div className="px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-900/20">
+                                            <div className="flex items-center">
+                                                <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mr-3">
+                                                    {user.avatar ? (
+                                                        <img
+                                                            src={user.avatar}
+                                                            alt={user.name}
+                                                            className="w-10 h-10 rounded-full"
+                                                        />
+                                                    ) : (
+                                                        <User className="w-5 h-5 text-primary-600" />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-neutral-900 dark:text-white">{user.name}</p>
+                                                    <p className="text-xs text-neutral-500 dark:text-neutral-400">{user.email}</p>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                {/* Mobile Sign Up Link */}
-                                <NavLink
-                                    to="/signup"
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors w-full"
-                                >
-                                    Sign Up
-                                </NavLink>
+                                        {/* User Links */}
+                                        <NavLink
+                                            to="/profile"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        >
+                                            <User className="w-4 h-4 mr-2" />
+                                            My Profile
+                                        </NavLink>
 
+                                        <NavLink
+                                            to="/health"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        >
+                                            <Heart className="w-4 h-4 mr-2" />
+                                            Health Dashboard
+                                        </NavLink>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            fullWidth
+                                            onClick={handleLogout}
+                                            leftIcon={<LogOut className="w-4 h-4" />}
+                                        >
+                                            Sign Out
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            fullWidth
+                                            onClick={handleLogin}
+                                            leftIcon={<UserCircle className="w-4 h-4" />}
+                                        >
+                                            Sign In
+                                        </Button>
+
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
+                                            fullWidth
+                                            onClick={handleSignup}
+                                        >
+                                            Sign Up
+                                        </Button>
+                                    </>
+                                )}
+
+                                {/* Emergency Call */}
                                 <Button
                                     variant="danger"
                                     size="sm"
                                     fullWidth
                                     leftIcon={<AlertTriangle className="w-4 h-4" />}
-                                    onClick={() => window.location.href = 'tel:911'}
+                                    onClick={handleEmergencyCall}
                                 >
                                     Emergency Call
                                 </Button>

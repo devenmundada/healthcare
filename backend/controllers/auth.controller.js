@@ -110,8 +110,9 @@ class AuthController {
         });
       }
 
-      // Check if user is verified
-      if (!user.is_verified) {
+      // Check if user is verified (skip in development mode)
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+      if (!user.is_verified && !isDevelopment) {
         return res.status(403).json({ 
           success: false, 
           message: 'Please verify your email address before logging in' 

@@ -27,12 +27,12 @@ class User {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
-      // Insert user
+      // Insert user (set is_verified to true for development)
       const result = await client.query(
-        `INSERT INTO users (name, email, phone, password) 
-         VALUES ($1, $2, $3, $4) 
-         RETURNING id, name, email, phone, role, created_at`,
-        [name, email, phone, hashedPassword]
+        `INSERT INTO users (name, email, phone, password, is_verified) 
+         VALUES ($1, $2, $3, $4, $5) 
+         RETURNING id, name, email, phone, role, is_verified, created_at`,
+        [name, email, phone, hashedPassword, true]
       );
 
       // Create health profile for the user

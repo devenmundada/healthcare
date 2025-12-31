@@ -7,7 +7,13 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth.routes');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// Ensure we use a valid HTTP port, not a database port
+let PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+// Safety check: if PORT is a common database port, use default
+if (PORT === 5432 || PORT === 3306 || PORT === 27017) {
+  console.warn(`⚠️  Warning: PORT ${PORT} is typically used for databases. Using 3001 instead.`);
+  PORT = 3001;
+}
 
 // Middleware
 app.use(helmet());
@@ -36,8 +42,8 @@ app.get('/api/test', (req, res) => {
 // 404 handler - MUST be last
 app.use('*', (req, res) => {
   console.log(`❌ Route not found: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ 
-    success: false, 
+  res.status(404).json({
+    success: false,
     message: 'Route not found',
     method: req.method,
     path: req.originalUrl,

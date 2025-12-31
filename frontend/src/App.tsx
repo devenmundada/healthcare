@@ -1,16 +1,25 @@
-import React from 'react';
-import { Routes, Route, BrowserRouter } from 'react-router-dom';
-import { MainLayout } from './layouts/MainLayout';
-import { Home } from './pages/Home';
-import { ChatAssistant } from './pages/ChatAssistant';
-import { ImageAnalysis } from './pages/ImageAnalysis';
-import { Features } from './pages/Features';
-import { About } from './pages/About';
-import { Doctors } from './pages/Doctors';
-import { MapPrediction } from './pages/MapPrediction';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import './styles/globals.css';
+import { MainLayout } from './layouts/MainLayout';
+import { About } from './pages/About';
+import { ChatAssistant } from './pages/ChatAssistant';
+import { Doctors } from './pages/Doctors';
+import { Features } from './pages/Features';
+import { Home } from './pages/Home';
+import { ImageAnalysis } from './pages/ImageAnalysis';
+import { Login } from './pages/Login';
+import { MapPrediction } from './pages/MapPrediction';
 import { SignUp } from './pages/SignUp';
+import './styles/globals.css';
+
+const NotFound = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="text-center">
+      <h1 className="text-4xl font-bold mb-4">404</h1>
+      <p className="text-lg">Page not found</p>
+    </div>
+  </div>
+);
 
 function App() {
   return (
@@ -18,23 +27,23 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<MainLayout />}>
+            {/* Public Routes */}
             <Route index element={<Home />} />
+            <Route path="about" element={<About />} />
+            <Route path="features" element={<Features />} />
+            <Route path="doctors" element={<Doctors />} />
+
+            {/* Auth Routes */}
+            <Route path="login" element={<Login />} />
+            <Route path="signup" element={<SignUp />} />
+
+            {/* Feature Routes */}
             <Route path="chat" element={<ChatAssistant />} />
             <Route path="analysis" element={<ImageAnalysis />} />
-            <Route path="features" element={<Features />} />
-            <Route path="about" element={<About />} />
-            <Route path="doctors" element={<Doctors />} />
             <Route path="map-prediction" element={<MapPrediction />} />
-            <Route path="signup" element={<SignUp />} />
-            {/* Add 404 page */}
-            <Route path="*" element={
-              <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                  <h1 className="text-4xl font-bold mb-4">404</h1>
-                  <p className="text-lg">Page not found</p>
-                </div>
-              </div>
-            } />
+
+            {/* 404 Route */}
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </AuthProvider>

@@ -1,230 +1,226 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
-// Mock user data
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  avatar: string;
-  location: string;
-  age: number;
-  healthConditions: string[];
-  lastLogin: string;
+  phone: string;
+  role: 'patient' | 'doctor' | 'admin';
+  avatar?: string;
+  location?: string;
+  age?: number;
+  healthConditions?: string[];
+  isVerified: boolean;
 }
 
-interface Appointment {
-  id: string;
-  type: 'Video Consultation' | 'In-person' | 'Follow-up';
-  doctor: string;
-  specialization: string;
-  date: string;
-  time: string;
-  status: 'Scheduled' | 'Completed' | 'Cancelled';
-  duration: string;
-}
-
-interface HealthNotification {
-  id: string;
-  type: 'Appointment' | 'Assessment' | 'Voice Analysis' | 'Health Tip';
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  priority: 'High' | 'Medium' | 'Low';
+export interface SignupData {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  appointments: Appointment[];
-  notifications: HealthNotification[];
+  token: string | null;
   login: (email: string, password: string) => Promise<boolean>;
+  signup: (userData: SignupData) => Promise<boolean>;
   logout: () => void;
-  toggleAuth: () => void;
-  markNotificationAsRead: (id: string) => void;
-  addAppointment: (appointment: Omit<Appointment, 'id' | 'status'>) => void;
+  updateUser: (userData: Partial<User>) => void;
+  isLoading: boolean;
 }
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const API_URL = 'http://localhost:3001/api';
+const STORAGE_KEYS = {
+  TOKEN: 'auth_token',
+  USER: 'auth_user',
+} as const;
+
+// ============================================================================
+// Context
+// ============================================================================
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data
-const mockUser: User = {
-  id: 'user-123',
-  name: 'Alex Johnson',
-  email: 'alex.johnson@example.com',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
-  location: 'San Francisco, CA',
-  age: 34,
-  healthConditions: ['Asthma', 'Seasonal Allergies'],
-  lastLogin: new Date().toISOString(),
-};
-
-// Mock appointments
-const mockAppointments: Appointment[] = [
-  {
-    id: 'apt-001',
-    type: 'Video Consultation',
-    doctor: 'Dr. Sarah Chen',
-    specialization: 'Cardiology',
-    date: 'Tomorrow',
-    time: '10:00 AM',
-    status: 'Scheduled',
-    duration: '30 min',
-  },
-  {
-    id: 'apt-002',
-    type: 'In-person',
-    doctor: 'Dr. Michael Rodriguez',
-    specialization: 'Respiratory',
-    date: 'Jan 25, 2024',
-    time: '2:30 PM',
-    status: 'Scheduled',
-    duration: '45 min',
-  },
-  {
-    id: 'apt-003',
-    type: 'Follow-up',
-    doctor: 'Dr. Lisa Wang',
-    specialization: 'Mental Health',
-    date: 'Feb 1, 2024',
-    time: '11:15 AM',
-    status: 'Scheduled',
-    duration: '20 min',
-  },
-];
-
-// Mock notifications
-const mockNotifications: HealthNotification[] = [
-  {
-    id: 'notif-001',
-    type: 'Appointment',
-    title: 'Appointment Confirmed',
-    message: 'Your video consultation with Dr. Sarah Chen is scheduled for tomorrow at 10:00 AM',
-    timestamp: '2 hours ago',
-    read: false,
-    priority: 'High',
-  },
-  {
-    id: 'notif-002',
-    type: 'Assessment',
-    title: 'Health Assessment Completed',
-    message: 'Your monthly health assessment shows improvement in respiratory metrics',
-    timestamp: '1 day ago',
-    read: false,
-    priority: 'Medium',
-  },
-  {
-    id: 'notif-003',
-    type: 'Voice Analysis',
-    title: 'Voice Analysis Results Ready',
-    message: 'Recent voice analysis detected normal patterns. No concerns identified.',
-    timestamp: '3 days ago',
-    read: true,
-    priority: 'Low',
-  },
-  {
-    id: 'notif-004',
-    type: 'Health Tip',
-    title: 'Daily Health Tip',
-    message: 'Remember to take your prescribed medication and stay hydrated today',
-    timestamp: '1 week ago',
-    read: true,
-    priority: 'Low',
-  },
-];
+// ============================================================================
+// Provider Component
+// ============================================================================
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // For demo purposes, start with authenticated = true
-  // Change to false to see logged-out state
+  // State initialization
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem('auth_demo_isAuthenticated');
-    return saved ? JSON.parse(saved) : true; // Default to true for demo
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    return !!token;
   });
 
   const [user, setUser] = useState<User | null>(() => {
-    if (!isAuthenticated) return null;
-    const saved = localStorage.getItem('auth_demo_user');
-    return saved ? JSON.parse(saved) : mockUser;
+    const savedUser = localStorage.getItem(STORAGE_KEYS.USER);
+    return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  const [appointments, setAppointments] = useState<Appointment[]>(() => {
-    const saved = localStorage.getItem('auth_demo_appointments');
-    return saved ? JSON.parse(saved) : mockAppointments;
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem(STORAGE_KEYS.TOKEN);
   });
 
-  const [notifications, setNotifications] = useState<HealthNotification[]>(() => {
-    const saved = localStorage.getItem('auth_demo_notifications');
-    return saved ? JSON.parse(saved) : mockNotifications;
-  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Persist state to localStorage
+  // ============================================================================
+  // Effects
+  // ============================================================================
+
+  // Check token validity on mount
   useEffect(() => {
-    localStorage.setItem('auth_demo_isAuthenticated', JSON.stringify(isAuthenticated));
-    if (user) {
-      localStorage.setItem('auth_demo_user', JSON.stringify(user));
-    }
-    localStorage.setItem('auth_demo_appointments', JSON.stringify(appointments));
-    localStorage.setItem('auth_demo_notifications', JSON.stringify(notifications));
-  }, [isAuthenticated, user, appointments, notifications]);
+    const checkAuth = async () => {
+      const storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
+      if (!storedToken) return;
+
+      try {
+        const response = await fetch(`${API_URL}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${storedToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+          setIsAuthenticated(true);
+        } else {
+          // Token invalid, clear storage
+          clearAuthData();
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        clearAuthData();
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // ============================================================================
+  // Helper Functions
+  // ============================================================================
+
+  const clearAuthData = () => {
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    setIsAuthenticated(false);
+    setUser(null);
+    setToken(null);
+  };
+
+  const saveAuthData = (authToken: string, userData: User) => {
+    localStorage.setItem(STORAGE_KEYS.TOKEN, authToken);
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+    setToken(authToken);
+    setUser(userData);
+    setIsAuthenticated(true);
+  };
+
+  // ============================================================================
+  // Auth Methods
+  // ============================================================================
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Simple mock validation
-    if (email && password) {
-      setIsAuthenticated(true);
-      setUser(mockUser);
-      return true;
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        saveAuthData(data.token, data.user);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    return false;
+  };
+
+  const signup = async (userData: SignupData): Promise<boolean> => {
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Auto-login after signup
+        saveAuthData(data.token, data.user);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Signup error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {
-    setIsAuthenticated(false);
-    setUser(null);
+    clearAuthData();
   };
 
-  const toggleAuth = () => {
-    if (isAuthenticated) {
-      logout();
-    } else {
-      setIsAuthenticated(true);
-      setUser(mockUser);
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
     }
   };
 
-  const markNotificationAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
-  };
-
-  const addAppointment = (appointment: Omit<Appointment, 'id' | 'status'>) => {
-    const newAppointment: Appointment = {
-      ...appointment,
-      id: `apt-${Date.now()}`,
-      status: 'Scheduled',
-    };
-    setAppointments(prev => [newAppointment, ...prev]);
-  };
+  // ============================================================================
+  // Context Value
+  // ============================================================================
 
   const value: AuthContextType = {
     isAuthenticated,
     user,
-    appointments,
-    notifications,
+    token,
     login,
+    signup,
     logout,
-    toggleAuth,
-    markNotificationAsRead,
-    addAppointment,
+    updateUser,
+    isLoading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+// ============================================================================
+// Hook
+// ============================================================================
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
