@@ -5,15 +5,16 @@ import { GlassCard } from '../components/layout/GlassCard';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  Mail, 
-  Lock, 
-  LogIn, 
+import {
+  Mail,
+  Lock,
+  LogIn,
   Eye,
   EyeOff,
   AlertCircle,
   Shield,
   HeartPulse,
+  ArrowRight,
   User
 } from 'lucide-react';
 
@@ -22,18 +23,20 @@ interface LoginForm {
   password: string;
 }
 
+
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
-  
+  const { login: authLogin } = useAuth();
   const [formData, setFormData] = useState<LoginForm>({
     email: '',
     password: '',
   });
-  
+
   const [errors, setErrors] = useState<Partial<LoginForm>>({});
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginForm> = {};
@@ -60,17 +63,34 @@ export const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
-    
+
     if (!validateForm()) {
       return;
     }
 
-    const success = await login(formData.email, formData.password);
-    
-    if (success) {
-      navigate('/');
-    } else {
-      setLoginError('Invalid email or password. Please try again.');
+    setIsLoading(true);
+
+    try {
+      // Use AuthContext login method
+      const success = await authLogin(formData.email, formData.password);
+
+      if (success) {
+        // Handle remember me functionality
+        if (!rememberMe) {
+          // If remember me is not checked, we could use sessionStorage instead
+          // But for now, we'll keep using localStorage as AuthContext does
+        }
+
+        // Redirect to home page
+        navigate('/');
+      } else {
+        setLoginError('Invalid email or password');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -80,7 +100,8 @@ export const Login: React.FC = () => {
       ...prev,
       [name]: value,
     }));
-    
+
+    // Clear error when user starts typing
     if (errors[name as keyof LoginForm]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
@@ -89,21 +110,31 @@ export const Login: React.FC = () => {
     }
   };
 
+  // Demo login credentials (for development only)
   const handleDemoLogin = async (role: 'patient' | 'doctor' | 'admin') => {
     const demoCredentials = {
       patient: { email: 'patient@example.com', password: 'Test123!' },
       doctor: { email: 'dr.johnson@healthcare.com', password: 'Doctor123!' },
       admin: { email: 'admin@healthcare.com', password: 'Admin123!' }
     };
-    
+
     setFormData(demoCredentials[role]);
-    
+    setLoginError(null);
+
+    // Auto-submit after a brief delay
     setTimeout(async () => {
-      const success = await login(demoCredentials[role].email, demoCredentials[role].password);
-      if (success) {
-        navigate('/');
-      } else {
-        setLoginError('Demo login failed. Check if backend is running.');
+      setIsLoading(true);
+      try {
+        const success = await authLogin(demoCredentials[role].email, demoCredentials[role].password);
+        if (success) {
+          navigate('/');
+        } else {
+          setLoginError('Invalid email or password');
+        }
+      } catch (error) {
+        setLoginError('Login failed. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     }, 100);
   };
@@ -112,6 +143,7 @@ export const Login: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 dark:from-neutral-900 dark:via-neutral-900 dark:to-blue-950/30">
       <Container className="py-12">
         <div className="max-w-4xl mx-auto">
+          {/* Header */}
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 mb-4">
               <Shield className="w-4 h-4" />
@@ -126,6 +158,7 @@ export const Login: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Column - Login Form */}
             <div>
               <GlassCard className="p-8">
                 {loginError && (
@@ -138,6 +171,7 @@ export const Login: React.FC = () => {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Email Field */}
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                       Email Address
@@ -154,13 +188,14 @@ export const Login: React.FC = () => {
                     />
                   </div>
 
+                  {/* Password Field */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                         Password
                       </label>
-                      <Link 
-                        to="/forgot-password" 
+                      <Link
+                        to="/forgot-password"
                         className="text-sm text-primary-600 hover:text-primary-700"
                       >
                         Forgot password?
@@ -187,17 +222,21 @@ export const Login: React.FC = () => {
                     />
                   </div>
 
+                  {/* Remember Me Checkbox */}
                   <div className="flex items-center">
                     <input
                       type="checkbox"
                       id="rememberMe"
-                      cl4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
                     />
                     <label htmlFor="rememberMe" className="text-sm text-neutral-700 dark:text-neutral-300">
                       Remember me on this device
                     </label>
                   </div>
 
+                  {/* Submit Button */}
                   <Button
                     type="submit"
                     size="lg"
@@ -216,6 +255,7 @@ export const Login: React.FC = () => {
                     )}
                   </Button>
 
+                  {/* Sign Up Link */}
                   <div className="text-center pt-4">
                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
                       Don't have an account?{' '}
@@ -226,7 +266,8 @@ export const Login: React.FC = () => {
                   </div>
                 </form>
 
-                {process.env.NODE_ENV === 'development' && (
+                {/* Demo Login Section (for development) */}
+                {import.meta.env.DEV && (
                   <div className="mt-8 pt-8 border-t border-neutral-200 dark:border-neutral-800">
                     <p className="text-sm text-neutral-500 dark:text-neutral-500 text-center mb-4">
                       Quick demo login:
@@ -237,7 +278,6 @@ export const Login: React.FC = () => {
                         size="sm"
                         onClick={() => handleDemoLogin('patient')}
                         className="text-xs"
-                        disabled={isLoading}
                       >
                         <User className="w-3 h-3 mr-1" />
                         Patient
@@ -247,7 +287,6 @@ export const Login: React.FC = () => {
                         size="sm"
                         onClick={() => handleDemoLogin('doctor')}
                         className="text-xs"
-                        disabled={isLoading}
                       >
                         <HeartPulse className="w-3 h-3 mr-1" />
                         Doctor
@@ -257,7 +296,6 @@ export const Login: React.FC = () => {
                         size="sm"
                         onClick={() => handleDemoLogin('admin')}
                         className="text-xs"
-                        disabled={isLoading}
                       >
                         <Shield className="w-3 h-3 mr-1" />
                         Admin
@@ -268,6 +306,7 @@ export const Login: React.FC = () => {
               </GlassCard>
             </div>
 
+            {/* Right Column - Benefits */}
             <div className="space-y-6">
               <GlassCard className="p-6 bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20">
                 <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-4">
@@ -285,7 +324,19 @@ export const Login: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  
+
+                  <div className="flex items-start space-x-3">
+                    <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30">
+                      <ArrowRight className="w-5 h-5 text-primary-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-neutral-900 dark:text-white">Quick Access</h4>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                        Book appointments, chat with doctors, view test results
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="flex items-start space-x-3">
                     <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30">
                       <Shield className="w-5 h-5 text-primary-600" />
@@ -300,6 +351,7 @@ export const Login: React.FC = () => {
                 </div>
               </GlassCard>
 
+              {/* Security Features */}
               <GlassCard className="p-6">
                 <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">
                   Security Features
@@ -316,6 +368,7 @@ export const Login: React.FC = () => {
                 </div>
               </GlassCard>
 
+              {/* Stats */}
               <GlassCard className="p-6">
                 <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">
                   Community Trust

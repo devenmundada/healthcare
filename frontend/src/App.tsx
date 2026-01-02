@@ -8,9 +8,11 @@ import { Features } from './pages/Features';
 import { Home } from './pages/Home';
 import { ImageAnalysis } from './pages/ImageAnalysis';
 import { Login } from './pages/Login';
-import { MapPrediction } from './pages/MapPrediction';
+import MapPrediction from './pages/MapPrediction';
 import { SignUp } from './pages/SignUp';
 import './styles/globals.css';
+import { Profile } from './pages/Profile';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const NotFound = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -33,9 +35,11 @@ function App() {
             <Route path="features" element={<Features />} />
             <Route path="doctors" element={<Doctors />} />
 
+
             {/* Auth Routes */}
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<SignUp />} />
+            <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
             {/* Feature Routes */}
             <Route path="chat" element={<ChatAssistant />} />
