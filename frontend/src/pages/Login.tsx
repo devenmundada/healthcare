@@ -191,9 +191,9 @@ export const Login: React.FC = () => {
                     <input
                       type="checkbox"
                       id="rememberMe"
-                      cl4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
                     />
-                    <label htmlFor="rememberMe" className="text-sm text-neutral-700 dark:text-neutral-300">
+                    <label htmlFor="rememberMe" className="text-sm text-neutral-700 dark:text-neutral-300 ml-2">
                       Remember me on this device
                     </label>
                   </div>
@@ -226,7 +226,7 @@ export const Login: React.FC = () => {
                   </div>
                 </form>
 
-                {process.env.NODE_ENV === 'development' && (
+                {import.meta.env.DEV && (
                   <div className="mt-8 pt-8 border-t border-neutral-200 dark:border-neutral-800">
                     <p className="text-sm text-neutral-500 dark:text-neutral-500 text-center mb-4">
                       Quick demo login:

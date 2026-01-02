@@ -91,19 +91,22 @@ class AuthController {
   // Login user
   static async login(req, res) {
     try {
-      const { email, password } = req.body;
-
-      // Validate required fields
-      if (!email || !password) {
+      // Check validation errors from express-validator
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Email and password are required' 
+          message: 'Validation failed',
+          errors: errors.array() 
         });
       }
+
+      const { email, password } = req.body;
 
       // Find user
       const user = await User.findByEmail(email);
       if (!user) {
+        console.log(`❌ Login failed: User not found for email ${email}`);
         return res.status(401).json({ 
           success: false, 
           message: 'Invalid credentials' 
@@ -113,6 +116,7 @@ class AuthController {
       // Check if user is verified (skip in development mode)
       const isDevelopment = process.env.NODE_ENV !== 'production';
       if (!user.is_verified && !isDevelopment) {
+        console.log(`❌ Login failed: User ${email} not verified`);
         return res.status(403).json({ 
           success: false, 
           message: 'Please verify your email address before logging in' 
@@ -122,11 +126,16 @@ class AuthController {
       // Verify password
       const isValidPassword = await User.verifyPassword(password, user.password);
       if (!isValidPassword) {
+        console.log(`❌ Login failed: Invalid password for email ${email}`);
+        console.log(`   Password length: ${password.length}, Hash length: ${user.password?.length || 0}`);
+        console.log(`   Hash starts with: ${user.password?.substring(0, 10) || 'N/A'}`);
         return res.status(401).json({ 
           success: false, 
           message: 'Invalid credentials' 
         });
       }
+
+      console.log(`✅ Login successful for user: ${email} (ID: ${user.id})`);
 
       // Generate token
       const token = User.generateToken(user);

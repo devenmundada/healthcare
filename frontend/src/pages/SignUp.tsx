@@ -143,14 +143,23 @@ export const SignUp: React.FC = () => {
     } catch (error) {
       console.error('Sign up error:', error);
       // Handle backend errors
-      let errorMessage = 'Network error. Please check your connection.';
+      let errorMessage = 'Unable to connect to the server. Please check if the backend server is running.';
       
       if (error instanceof AxiosError) {
-        errorMessage = error.response?.data?.message || 
-                      error.message || 
-                      'Network error. Please check your connection.';
+        // Check for connection refused errors
+        if (error.code === 'ECONNREFUSED' || error.message.includes('ERR_CONNECTION_REFUSED') || error.message.includes('Failed to fetch')) {
+          errorMessage = 'Cannot connect to the server. Please ensure the backend server is running on port 3001.';
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
       } else if (error instanceof Error) {
-        errorMessage = error.message;
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          errorMessage = 'Cannot connect to the server. Please ensure the backend server is running on port 3001.';
+        } else {
+          errorMessage = error.message;
+        }
       }
       
       setErrors({

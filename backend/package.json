@@ -23,7 +23,9 @@
     "db:setup": "npx ts-node scripts/setup-database.ts",
     "db:check": "node scripts/check-db.js",
     "db:migrate": "npm run typeorm migration:run -- -d src/config/data-source.ts",
-    "db:generate": "npm run typeorm migration:generate -- -d src/config/data-source.ts"
+    "db:generate": "npm run typeorm migration:generate -- -d src/config/data-source.ts",
+    "db:seed": "node scripts/seed-demo-users.js",
+    "db:fix-password": "node scripts/fix-patient-password.js"
   },
   "keywords": [
     "healthcare",
