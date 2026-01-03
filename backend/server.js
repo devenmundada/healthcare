@@ -34,6 +34,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 console.log('✅ Auth routes registered at /api/auth');
 
+app.use('/api/india/hospitals', require('./routes/indian-hospitals.routes'));
 // Test
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API working' });
