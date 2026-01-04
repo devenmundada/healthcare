@@ -12,7 +12,9 @@ import MapPrediction from './pages/MapPrediction';
 import { SignUp } from './pages/SignUp';
 import './styles/globals.css';
 import { Profile } from './pages/Profile';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import { Chat } from './pages/Chat'; 
+import { ChatPublic } from './pages/ChatPublic';
 
 const NotFound = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -40,9 +42,10 @@ function App() {
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<SignUp />} />
             <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/chat-test" element={<ChatPublic />} />
 
             {/* Feature Routes */}
-            <Route path="chat" element={<ChatAssistant />} />
+            <Route path="/chat" element={<Chat />} />
             <Route path="analysis" element={<ImageAnalysis />} />
             <Route path="map-prediction" element={<MapPrediction />} />
 

@@ -6,6 +6,7 @@ require('dotenv').config();
 const doctorsRoutes = require('./routes/doctors.routes');
 const authRoutes = require('./routes/auth.routes');
 const indianHospitalsRoutes = require('./routes/indian-hospitals.routes');
+const aiAssistantRoutes = require('./routes/ai-assistant.routes');  
 
 const app = express();
 // Ensure we use a valid HTTP port, not a database port
@@ -38,6 +39,7 @@ console.log('✅ Doctors routes registered at /api/doctors');
 console.log('✅ Indian hospitals routes registered at /api/india/hospitals');   
 app.use('/api/india/hospitals', indianHospitalsRoutes);
 app.use('/api/doctors', doctorsRoutes);
+app.use('/api/ai', aiAssistantRoutes);
 // Test
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API working' });
