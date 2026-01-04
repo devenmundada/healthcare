@@ -3,8 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
-
+const doctorsRoutes = require('./routes/doctors.routes');
 const authRoutes = require('./routes/auth.routes');
+const indianHospitalsRoutes = require('./routes/indian-hospitals.routes');
 
 const app = express();
 // Ensure we use a valid HTTP port, not a database port
@@ -33,8 +34,10 @@ app.get('/api/health', (req, res) => {
 // API Routes - MUST be before 404 handler
 app.use('/api/auth', authRoutes);
 console.log('✅ Auth routes registered at /api/auth');
-
-app.use('/api/india/hospitals', require('./routes/indian-hospitals.routes'));
+console.log('✅ Doctors routes registered at /api/doctors');
+console.log('✅ Indian hospitals routes registered at /api/india/hospitals');   
+app.use('/api/india/hospitals', indianHospitalsRoutes);
+app.use('/api/doctors', doctorsRoutes);
 // Test
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API working' });
