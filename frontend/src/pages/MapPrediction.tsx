@@ -1,383 +1,367 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import { Icon } from 'leaflet';
-import {
-  MapPin,
-  Navigation,
-  Thermometer,
-  Wind,
-  Building,
-  Phone,
-  Navigation as DirectionsIcon,
-  AlertTriangle,
-  Heart
-} from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { GlassCard } from '../components/layout/GlassCard';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import { Hospital } from '../types/healthcare';
+import L from 'leaflet';
+import IndianCitySelector from '../components/location/IndianCitySelector';
 
-// Custom hospital icon
-const hospitalIcon = new Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+// Import the real IndianHealthAPI service
+import IndianHealthAPI from '../services/indian-health-api';
+
+// Custom hospital icon for Leaflet
+const hospitalIcon = L.divIcon({
+  html: `
+    <div style="
+      background-color: #DC2626;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+      border: 3px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    ">
+      🏥
+    </div>
+  `,
+  className: 'hospital-marker',
   iconSize: [32, 32],
   iconAnchor: [16, 32],
-  popupAnchor: [0, -32]
 });
 
-// Custom user location icon
-const userIcon = new Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684809.png',
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32]
-});
-
-interface Location {
-  lat: number;
-  lng: number;
-  address?: string;
-}
-
-interface Hospital {
+interface IndianCity {
   id: string;
   name: string;
-  address: string;
-  location: Location;
-  distance: number;
-  specialty: string;
-  emergency: boolean;
-  phone: string;
+  state: string;
+  latitude: number;
+  longitude: number;
 }
 
 const MapPrediction: React.FC = () => {
-  const [userLocation, setUserLocation] = useState<Location | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [selectedCity, setSelectedCity] = useState<IndianCity>({
+    id: '2',
+    name: 'Delhi',
+    state: 'Delhi',
+    latitude: 28.7041,
+    longitude: 77.1025,
+  });
+
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([37.7749, -122.4194]); // SF default
-  const [hospitals, setHospitals] = useState<Hospital[]>([
-    {
-      id: '1',
-      name: 'City General Hospital',
-      address: '123 Medical Center Dr, San Francisco, CA',
-      location: { lat: 37.7759, lng: -122.4184 },
-      distance: 0.5,
-      specialty: 'Multi-specialty',
-      emergency: true,
-      phone: '(555) 123-4567'
-    },
-    {
-      id: '2',
-      name: 'Westside Medical Center',
-      address: '456 Health Ave, San Francisco, CA',
-      location: { lat: 37.7739, lng: -122.4214 },
-      distance: 1.2,
-      specialty: 'Pediatrics',
-      emergency: true,
-      phone: '(555) 234-5678'
-    },
-    {
-      id: '3',
-      name: 'University Hospital',
-      address: '789 Campus Rd, San Francisco, CA',
-      location: { lat: 37.7769, lng: -122.4164 },
-      distance: 2.3,
-      specialty: 'Research',
-      emergency: true,
-      phone: '(555) 345-6789'
-    }
-  ]);
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
 
-  // Get user location
+  // Fetch real Indian hospitals when city changes
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
-          setMapCenter([latitude, longitude]);
-          setLoading(false);
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          setError('Location access denied. Using default location.');
-          setLoading(false);
+    const fetchHospitals = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Use the real IndianHealthAPI service
+        const realHospitals = await IndianHealthAPI.getHospitalsByCity(selectedCity.name);
+        setHospitals(realHospitals);
+        
+        // If we have hospitals, select the first one
+        if (realHospitals.length > 0) {
+          setSelectedHospital(realHospitals[0]);
         }
-      );
-    } else {
-      setError('Geolocation not supported');
-      setLoading(false);
-    }
-  }, []);
+      } catch (err) {
+        setError('Failed to fetch hospitals. Please try again.');
+        console.error('Error fetching hospitals:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-neutral-600 dark:text-neutral-400">Loading map and location data...</p>
-        </div>
-      </div>
-    );
-  }
+    fetchHospitals();
+  }, [selectedCity]);
+
+  const handleCitySelect = (city: IndianCity) => {
+    setSelectedCity(city);
+  };
+
+  const handleGetDirections = (hospital: Hospital) => {
+    if (hospital.lat && hospital.lng) {
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&destination=${hospital.lat},${hospital.lng}`,
+        '_blank'
+      );
+    }
+  };
+
+  const handleCallHospital = (phoneNumber: string) => {
+    window.location.href = `tel:${phoneNumber}`;
+  };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-          Healthcare Facilities Map
-        </h1>
-        <p className="text-neutral-600 dark:text-neutral-400">
-          Find hospitals and medical centers near your location
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            Find Real Indian Hospitals
+          </h1>
+          <p className="text-gray-600">
+            Search for hospitals across India with real contact information
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Map - Takes 2/3 of width */}
-        <div className="lg:col-span-2">
-          <GlassCard className="p-0 overflow-hidden">
-            <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
-                  Interactive Health Map
-                </h2>
-                <Badge>
-                  {hospitals.length} hospitals
-                </Badge>
+        {/* City Selection */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Select Your City in India</h2>
+          <IndianCitySelector
+            onCitySelect={handleCitySelect}
+            selectedCity={selectedCity}
+          />
+        </div>
+
+        {/* Loading and Error States */}
+        {loading && (
+          <div className="flex justify-center items-center p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-700">Loading real Indian hospitals...</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <span className="text-red-500">⚠️</span>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="h-[500px] relative">
-              {/* Leaflet Map */}
+        {/* Map and Hospital List */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Map Container */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg p-4 h-[500px]">
               <MapContainer
-                center={mapCenter}
-                zoom={14}
-                style={{ height: '100%', width: '100%' }}
-                className="z-0"
+                center={[selectedCity.latitude, selectedCity.longitude]}
+                zoom={12}
+                className="h-full w-full rounded-lg"
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-
-                {/* User location circle */}
-                {userLocation && (
-                  <Circle
-                    center={[userLocation.lat, userLocation.lng]}
-                    radius={500}
-                    pathOptions={{ fillColor: '#3b82f6', color: '#1d4ed8' }}
-                  />
-                )}
-
-                {/* User location marker */}
-                {userLocation && (
-                  <Marker
-                    position={[userLocation.lat, userLocation.lng]}
-                    icon={userIcon}
-                  >
-                    <Popup>
-                      <div className="p-2">
-                        <h3 className="font-bold">Your Location</h3>
-                        <p className="text-sm text-neutral-600">
-                          {userLocation.address || 'Current position'}
-                        </p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )}
-
-                {/* Hospital markers */}
+                
+                {/* Mark selected city */}
+                <Marker
+                  position={[selectedCity.latitude, selectedCity.longitude]}
+                  icon={L.divIcon({
+                    html: `<div style="
+                      background-color: #3B82F6;
+                      width: 40px;
+                      height: 40px;
+                      border-radius: 50%;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      color: white;
+                      font-size: 20px;
+                      border: 3px solid white;
+                      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                    ">📍</div>`,
+                    className: 'city-marker',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 40],
+                  })}
+                >
+                  <Popup>
+                    <div className="font-semibold">{selectedCity.name}, {selectedCity.state}</div>
+                    <div className="text-sm text-gray-600">Selected City</div>
+                  </Popup>
+                </Marker>
+                
+                {/* Real hospital markers */}
                 {hospitals.map((hospital) => (
                   <Marker
                     key={hospital.id}
-                    position={[hospital.location.lat, hospital.location.lng]}
+                    position={[hospital.lat, hospital.lng]}
                     icon={hospitalIcon}
+                    eventHandlers={{
+                      click: () => setSelectedHospital(hospital),
+                    }}
                   >
                     <Popup>
-                      <div className="p-2 max-w-[250px]">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-bold text-lg">{hospital.name}</h3>
-                          {hospital.emergency && (
-                            <Badge size="sm" className="bg-red-500 text-white">
-                              ER
-                            </Badge>
+                      <div className="p-2">
+                        <h3 className="font-bold text-lg text-gray-900">{hospital.name}</h3>
+                        <p className="text-sm text-gray-600">{hospital.city}, {hospital.state}</p>
+                        <div className="mt-2 space-y-1">
+                          <div className="flex items-center text-sm">
+                            <span className="font-medium mr-2">Type:</span>
+                            <span className="text-gray-700">{hospital.type}</span>
+                          </div>
+                          {hospital.phone && (
+                            <div className="flex items-center text-sm">
+                              <span className="font-medium mr-2">Phone:</span>
+                              <a 
+                                href={`tel:${hospital.phone}`}
+                                className="text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                {hospital.phone}
+                              </a>
+                            </div>
                           )}
-                        </div>
-                        <p className="text-sm text-neutral-600 mb-2">
-                          {hospital.address}
-                        </p>
-                        <p className="text-sm mb-2">
-                          <span className="font-medium">Specialty:</span> {hospital.specialty}
-                        </p>
-                        <p className="text-sm mb-3">
-                          <span className="font-medium">Distance:</span> {hospital.distance} miles
-                        </p>
-                        <div className="flex gap-2">
-                          <a
-                            href={`tel:${hospital.phone}`}
-                            className="flex-1"
-                          >
-                            <Button size="sm" fullWidth>
-                              <Phone className="w-4 h-4 mr-1" />
-                              Call
-                            </Button>
-                          </a>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            fullWidth
-                            onClick={() => {
-                              window.open(
-                                `https://www.google.com/maps/dir/?api=1&destination=${hospital.location.lat},${hospital.location.lng}`,
-                                '_blank'
-                              );
-                            }}
-                          >
-                            <DirectionsIcon className="w-4 h-4 mr-1" />
-                            Directions
-                          </Button>
+                          {hospital.ayushmanBharat && (
+                            <div className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                              ✓ Ayushman Bharat
+                            </div>
+                          )}
                         </div>
                       </div>
                     </Popup>
                   </Marker>
                 ))}
               </MapContainer>
+            </div>
+          </div>
 
-              {/* Map controls overlay */}
-              <div className="absolute top-4 right-4 z-[1000] space-y-2">
-                {error && (
-                  <div className="bg-red-100 border border-red-300 text-red-800 px-4 py-2 rounded-lg">
-                    <div className="flex items-center">
-                      <AlertTriangle className="w-4 h-4 mr-2" />
-                      <span className="text-sm">{error}</span>
+          {/* Hospital Details Panel */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-lg p-6 h-[500px] overflow-y-auto">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Hospitals in {selectedCity.name}
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  ({hospitals.length} found)
+                </span>
+              </h2>
+
+              {hospitals.length === 0 && !loading ? (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-4">🏥</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No hospitals found
+                  </h3>
+                  <p className="text-gray-600">
+                    Try selecting a different city in India
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {hospitals.map((hospital) => (
+                    <div
+                      key={hospital.id}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedHospital?.id === hospital.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-25'
+                      }`}
+                      onClick={() => setSelectedHospital(hospital)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-bold text-gray-900">{hospital.name}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{hospital.address}</p>
+                          
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">
+                              {hospital.type}
+                            </span>
+                            {hospital.ayushmanBharat && (
+                              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                Ayushman Bharat
+                              </span>
+                            )}
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                              Beds: {hospital.availableBeds || 'N/A'} available
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col gap-2">
+                          {hospital.phone && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCallHospital(hospital.phone);
+                              }}
+                              className="px-3 py-1 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors flex items-center"
+                            >
+                              📞 Call
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGetDirections(hospital);
+                            }}
+                            className="px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center"
+                          >
+                            🗺️ Directions
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {hospital.phone && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-sm">
+                            <span className="font-medium">Contact:</span>{' '}
+                            <a 
+                              href={`tel:${hospital.phone}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {hospital.phone}
+                            </a>
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    if (userLocation) {
-                      setMapCenter([userLocation.lat, userLocation.lng]);
-                    }
-                  }}
-                  className="shadow-lg"
-                >
-                  <Navigation className="w-4 h-4 mr-2" />
-                  Center on me
-                </Button>
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
-                    <span>Your location</span>
-                  </div>
-                  <div className="flex items-center">
-                    <img
-                      src="https://cdn-icons-png.flaticon.com/512/684/684908.png"
-                      alt="Hospital"
-                      className="w-4 h-4 mr-2"
-                    />
-                    <span>Hospital</span>
-                  </div>
+                  ))}
                 </div>
-                <div className="text-neutral-500">
-                  Data from OpenStreetMap
-                </div>
-              </div>
+              )}
             </div>
-          </GlassCard>
+          </div>
         </div>
 
-        {/* Sidebar - Hospitals list */}
-        <div>
-          <GlassCard className="h-full">
-            <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-6">
-              Nearby Hospitals
-            </h2>
-
-            <div className="space-y-4 overflow-y-auto max-h-[400px] pr-2">
-              {hospitals.map((hospital) => (
-                <div
-                  key={hospital.id}
-                  className="p-4 border border-neutral-200 dark:border-neutral-800 rounded-lg hover:border-primary-300 transition-colors"
-                >
-                  <div className="flex items-start mb-3">
-                    <Building className="w-5 h-5 text-primary-600 mr-3 mt-1" />
-                    <div className="flex-1">
-                      <h3 className="font-bold text-neutral-900 dark:text-white">
-                        {hospital.name}
-                      </h3>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
-                        {hospital.address}
-                      </p>
-                    </div>
-                    {hospital.emergency && (
-                      <Badge size="sm" className="bg-red-500 text-white">
-                        ER
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                    <div className="flex items-center">
-                      <Navigation className="w-3 h-3 mr-1 text-neutral-500" />
-                      {hospital.distance} miles
-                    </div>
-                    <div className="flex items-center">
-                      <Heart className="w-3 h-3 mr-1 text-neutral-500" />
-                      {hospital.specialty}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <a
-                      href={`tel:${hospital.phone}`}
-                      className="flex-1"
-                    >
-                      <Button size="sm" fullWidth>
-                        <Phone className="w-4 h-4 mr-1" />
-                        Call
-                      </Button>
-                    </a>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      fullWidth
-                      onClick={() => {
-                        window.open(
-                          `https://www.google.com/maps/dir/?api=1&destination=${hospital.location.lat},${hospital.location.lng}`,
-                          '_blank'
-                        );
-                      }}
-                    >
-                      <DirectionsIcon className="w-4 h-4 mr-1" />
-                      Directions
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800">
-              <div className="text-center">
-                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
-                  Need immediate help?
+        {/* Info Panel */}
+        <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            About Real Indian Hospital Data
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-start">
+              <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                <span className="text-blue-600">🏥</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900">Real Hospitals</h4>
+                <p className="text-sm text-gray-600 mt-1">
+                  Showing actual hospitals from the Indian healthcare database
                 </p>
-                <Button
-                  variant="danger"
-                  fullWidth
-                  onClick={() => window.open('tel:911', '_self')}
-                >
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  Emergency Call (911)
-                </Button>
               </div>
             </div>
-          </GlassCard>
+            <div className="flex items-start">
+              <div className="bg-green-100 p-2 rounded-lg mr-3">
+                <span className="text-green-600">📍</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900">Accurate Locations</h4>
+                <p className="text-sm text-gray-600 mt-1">
+                  Real addresses and coordinates for Indian hospitals
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start">
+              <div className="bg-purple-100 p-2 rounded-lg mr-3">
+                <span className="text-purple-600">📞</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900">Verified Contacts</h4>
+                <p className="text-sm text-gray-600 mt-1">
+                  Real phone numbers you can actually call
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
