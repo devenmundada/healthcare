@@ -56,7 +56,7 @@ const FloatingChatWidget: React.FC = () => {
   // Initialize Speech Recognition
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recog = new SpeechRecognition();
       recog.lang = 'en-IN';
       recog.interimResults = false;

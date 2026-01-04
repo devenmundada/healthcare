@@ -15,6 +15,7 @@ export interface User {
   age?: number;
   healthConditions?: string[];
   isVerified: boolean;
+  medicalHistory?: string;
 }
 
 export interface SignupData {
