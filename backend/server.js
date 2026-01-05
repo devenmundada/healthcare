@@ -40,6 +40,7 @@ console.log('✅ Indian hospitals routes registered at /api/india/hospitals');
 app.use('/api/india/hospitals', indianHospitalsRoutes);
 app.use('/api/doctors', doctorsRoutes);
 app.use('/api/ai', aiAssistantRoutes);
+app.use('/api', authRoutes);
 // Test
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API working' });

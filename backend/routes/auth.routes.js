@@ -51,5 +51,5 @@ console.log('✅ Auth routes registered:');
 console.log('   POST /signup');
 console.log('   POST /login');
 console.log('   GET /me');
-
+router.post('/auth/signup', AuthController.signup);
 module.exports = router;
