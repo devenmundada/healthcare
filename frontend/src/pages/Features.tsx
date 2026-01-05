@@ -4,7 +4,7 @@ import { GlassCard } from '../components/layout/GlassCard';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { ImageAnalysisModal } from '../components/features/ImageAnalysisModal'; // Add this import
+import { ImageAnalysisModal } from '../components/features/ImageAnalysisModal';
 import { 
   Brain,
   MessageSquare,
@@ -326,11 +326,11 @@ export const Features: React.FC = () => {
             Join leading healthcare providers who are using our AI platform to improve patient outcomes and operational efficiency.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="white">
+            <Button size="lg" variant="secondary">
               <Terminal className="w-5 h-5 mr-2" />
               Get Started Free
             </Button>
-            <Button size="lg" variant="outline" className="text-white border-white">
+            <Button size="lg" variant="ghost" className="text-white border-white">
               <Globe className="w-5 h-5 mr-2" />
               Contact Sales
             </Button>
