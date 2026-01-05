@@ -1,60 +1,69 @@
-import { SeverityLevel } from './ui.types';
-
-export interface Doctor {
+export interface MedicalImage {
     id: string;
-    name: string;
-    specialty: string;
-    hospital: string;
-    experience: number;
-    rating: number;
-    consultations: number;
-    avatarUrl?: string;
-    isOnline: boolean;
-}
-
-export interface Pathology {
+    file: File;
+    previewUrl: string;
+    originalName: string;
+    size: number;
+    mimeType: string;
+    uploadedAt: Date;
+    analysisType: 'skin' | 'xray' | 'wound' | 'general';
+    status: 'uploading' | 'processing' | 'completed' | 'error';
+    analysisResult?: AnalysisResult;
+  }
+  
+  export interface AnalysisResult {
+    id: string;
+    imageId: string;
+    findings: Finding[];
+    confidence: number;
+    recommendations: Recommendation[];
+    severity: 'low' | 'medium' | 'high';
+    timestamp: Date;
+    aiModel: string;
+    processingTime: number;
+    metadata: Record<string, any>;
+  }
+  
+  export interface Finding {
     id: string;
     name: string;
     confidence: number;
-    severity: SeverityLevel;
     description: string;
-    prevalence: string;
-}
-
-export interface AnalysisResult {
+    boundingBox?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    color: string; // For visualization
+  }
+  
+  export interface Recommendation {
     id: string;
+    type: 'doctor' | 'medication' | 'lifestyle' | 'monitoring' | 'emergency';
+    title: string;
+    description: string;
+    priority: number;
+    actionUrl?: string;
+  }
+  
+  export interface AnalysisHistory {
+    id: string;
+    userId?: string;
     imageUrl: string;
-    patientId: string;
-    patientAge: number;
-    patientGender: 'male' | 'female' | 'other';
-    timestamp: Date;
-    findings: Pathology[];
-    recommendations: string[];
-    urgency: SeverityLevel;
-    note: string;
-}
-
-export interface ChatMessage {
+    thumbnailUrl: string;
+    analysisType: string;
+    result: AnalysisResult;
+    createdAt: Date;
+    tags: string[];
+  }
+  
+  export interface ModelInfo {
     id: string;
-    content: string;
-    sender: 'user' | 'assistant' | 'system';
-    timestamp: Date;
-    type?: 'text' | 'image' | 'file';
-    isEmergency?: boolean;
-}
-
-export interface Feature {
-    id: string;
-    title: string;
+    name: string;
     description: string;
-    icon: React.ReactNode;
-    isComingSoon?: boolean;
-}
-
-export interface StatCard {
-    title: string;
-    value: string | number;
-    change?: number;
-    description: string;
-    icon: React.ReactNode;
-}
+    accuracy: number;
+    specialty: string[];
+    inputSize: string;
+    supportedFormats: string[];
+  }

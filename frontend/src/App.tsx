@@ -6,7 +6,8 @@ import { ChatAssistant } from './pages/ChatAssistant';
 import { Doctors } from './pages/Doctors';
 import { Features } from './pages/Features';
 import { Home } from './pages/Home';
-import { ImageAnalysis } from './pages/ImageAnalysis';
+import ImageAnalysis from './pages/ImageAnalysis';
+
 import { Login } from './pages/Login';
 import MapPrediction from './pages/MapPrediction';
 import { SignUp } from './pages/SignUp';

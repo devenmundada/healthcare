@@ -6,12 +6,10 @@ import MedicalImageUpload from '../components/features/image-upload/MedicalImage
 import AnalysisResults from '../components/features/analysis-results/AnalysisResults';
 import { medicalAIService } from '../services/medical-ai-service';
 import { MedicalImage, AnalysisResult, ModelInfo } from '../types/medical-images';
-
-
 import {
   Camera,
   Brain,
-  Shield as WoundIcon,
+  Shield,
   Clock,
   Download,
   Share2,
@@ -20,10 +18,10 @@ import {
   AlertTriangle,
   CheckCircle,
   Image as ImageIcon,
-  Activity,
-  Scan as XRayIcon
+  XRay,
+  Shield as WoundIcon,
+  Activity
 } from 'lucide-react';
-
 
 const ImageAnalysis: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -181,7 +179,7 @@ Always consult with qualified healthcare professionals for medical diagnosis and
       id: 'xray',
       name: 'X-ray Analysis',
       description: 'Chest X-rays, bone fractures',
-      icon: <XRayIcon className="w-5 h-5" />,
+      icon: <XRay className="w-5 h-5" />,
       color: 'from-blue-500 to-indigo-500',
       models: availableModels.filter(m => m.specialty.includes('xray')),
     },
@@ -240,7 +238,7 @@ Always consult with qualified healthcare professionals for medical diagnosis and
               )}
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-neutral-800 rounded-full shadow-sm">
-              <WoundIcon className="w-4 h-4 text-blue-500" />
+              <Shield className="w-4 h-4 text-blue-500" />
               <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 100% Private & Secure
               </span>
@@ -312,7 +310,7 @@ Always consult with qualified healthcare professionals for medical diagnosis and
                   <Button
                     variant="secondary"
                     onClick={clearAnalysis}
-                    leftIcon={<XRayIcon className="w-4 h-4" />}
+                    leftIcon={<XRay className="w-4 h-4" />}
                   >
                     Clear
                   </Button>
