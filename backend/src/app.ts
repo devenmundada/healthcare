@@ -7,6 +7,7 @@ import 'express-async-errors';
 import { StatusCodes } from 'http-status-codes';
 import swaggerUi from 'swagger-ui-express';
 import { rateLimit } from 'express-rate-limit';
+import { isProduction } from './config/environment';
 
 import { AppError } from './utils/errors/AppError';
 import { errorHandler } from './middleware/errorHandler';
@@ -63,7 +64,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Compression
-app.use(compression());
+app.use(compression() as any);
 
 // Request logging
 app.use(morgan(isProduction ? 'combined' : 'dev'));
@@ -89,7 +90,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // API Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', (swaggerUi.serve as any), (swaggerUi.setup(swaggerSpec) as any));
 
 // API Routes
 const apiPrefix = process.env.API_PREFIX || '/api';
